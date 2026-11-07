@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Mal3abi.Auth.API/Mal3abi.Auth.API.csproj" />
+  <Project Path="Mal3abi.Auth.Core/Mal3abi.Auth.Core.csproj" />
+  <Project Path="Mal3abi.Auth.Infra/Mal3abi.Auth.Infra.csproj" />
+</Solution>

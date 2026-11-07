@@ -1,0 +1,62 @@
+@page "/account/login"
+@model Mal3abi.Auth.API.Pages.Account.LoginModel
+@{
+    Layout = null;
+    ViewData["Title"] = "تسجيل الدخول | ملعبي";
+}
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b1220" />
+    <title>@ViewData["Title"]</title>
+    <style>
+        :root { color-scheme: dark; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #0b1220; color: #eef2f8; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(ellipse at top, #14243b, #0b1220 60%); }
+        main { width: min(100%, 440px); padding: clamp(22px, 6vw, 36px); border: 1px solid #2b3b55; border-radius: 18px; background: #172338; box-shadow: 0 24px 70px #0006; }
+        .brand { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; color: #00d084; font-weight: 800; letter-spacing: .04em; }
+        h1 { margin: 0 0 8px; font-size: clamp(1.45rem, 5vw, 1.8rem); }
+        p { color: #9aabc1; line-height: 1.7; margin: 0 0 24px; }
+        label { display: block; margin: 16px 0 7px; color: #bdc9d9; font-size: .92rem; }
+        input { width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid #33445e; border-radius: 9px; background: #111b2c; color: #f4f7fb; font: inherit; }
+        input:focus { outline: 2px solid #15a7ec; outline-offset: 1px; }
+        .remember { display: flex; align-items: center; gap: 9px; margin: 15px 0; color: #aebbd0; }
+        .remember input { width: 18px; min-height: 18px; accent-color: #00c875; }
+        button { width: 100%; min-height: 48px; margin-top: 18px; border: 0; border-radius: 9px; background: #00c875; color: #06110b; font: inherit; font-weight: 800; cursor: pointer; }
+        .message { margin: 14px 0; padding: 11px 13px; border-radius: 8px; background: #35232d; color: #ffb4b4; }
+        .links { margin-top: 22px; text-align: center; color: #9aabc1; }
+        a { color: #48adff; }
+        @@media (max-width: 360px) { body { padding: 12px; } main { padding: 20px 16px; } }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="brand"><span>ملعبي</span><span>مركز الحسابات</span></div>
+        <h1>تسجيل الدخول</h1>
+        <p>استخدم بريدك الإلكتروني أو اسم المستخدم للمتابعة إلى ملعبي.</p>
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage)) { <div class="message" role="alert">@Model.ErrorMessage</div> }
+        <form method="post">
+            <input type="hidden" asp-for="ReturnUrl" />
+            @if (Model.RequireTwoFactor)
+            {
+                <input type="hidden" asp-for="Input.Identifier" />
+                <label asp-for="Input.AuthenticatorCode">رمز المصادقة الثنائية</label>
+                <input asp-for="Input.AuthenticatorCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required />
+            }
+            else
+            {
+                <label asp-for="Input.Identifier">البريد الإلكتروني أو اسم المستخدم</label>
+                <input asp-for="Input.Identifier" autocomplete="username" required maxlength="256" autofocus />
+                <label asp-for="Input.Password">كلمة المرور</label>
+                <input asp-for="Input.Password" type="password" autocomplete="current-password" required />
+            }
+            <label class="remember"><input asp-for="Input.RememberMe" /> تذكرني على هذا الجهاز</label>
+            <button type="submit">تسجيل الدخول</button>
+        </form>
+        <div class="links"><a href="/account/forgot-password">نسيت كلمة المرور؟</a></div>
+        <div class="links">ليس لديك حساب؟ <a href="@Url.Page("/Account/Register", new { returnUrl = Model.ReturnUrl })">إنشاء حساب لاعب</a></div>
+    </main>
+</body>
+</html>

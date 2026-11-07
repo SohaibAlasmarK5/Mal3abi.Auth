@@ -1,0 +1,21 @@
+@page "/account/register"
+@model Mal3abi.Auth.API.Pages.Account.RegisterModel
+@{
+    Layout = null;
+    ViewData["Title"] = "إنشاء حساب لاعب | ملعبي";
+}
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>@ViewData["Title"]</title>
+<style>
+:root{color-scheme:dark;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:#0b1220;color:#eef2f8}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;background:radial-gradient(ellipse at top,#14243b,#0b1220 60%)}main{width:min(100%,520px);padding:clamp(20px,5vw,34px);border:1px solid #2b3b55;border-radius:18px;background:#172338;box-shadow:0 24px 70px #0006}.brand{display:flex;justify-content:space-between;margin-bottom:20px;color:#00d084;font-weight:800}h1{margin:0 0 8px;font-size:clamp(1.4rem,5vw,1.8rem)}p{color:#9aabc1;line-height:1.6}label{display:block;margin:12px 0 6px;color:#bdc9d9;font-size:.92rem}input{width:100%;min-height:45px;padding:10px 12px;border:1px solid #33445e;border-radius:9px;background:#111b2c;color:#f4f7fb;font:inherit}input:focus{outline:2px solid #15a7ec}button{width:100%;min-height:48px;margin-top:18px;border:0;border-radius:9px;background:#00c875;color:#06110b;font:inherit;font-weight:800}.message{padding:11px;border-radius:8px;background:#35232d;color:#ffb4b4}.validation-summary-errors{color:#ffb4b4}@@media(max-width:360px){body{padding:10px}}
+</style></head><body><main><div class="brand"><span>ملعبي</span><span>إنشاء حساب لاعب</span></div>
+<h1>انضم إلى ملعبي</h1><p>أدخل بياناتك. سنرسل رابطاً إلى بريدك الإلكتروني لتأكيد الحساب.</p>
+@if (!string.IsNullOrWhiteSpace(Model.Message)) { <p class="message" role="status">@Model.Message</p> }
+<div asp-validation-summary="All"></div><form method="post"><input type="hidden" asp-for="ReturnUrl">
+<label asp-for="Input.Name">الاسم الكامل</label><input asp-for="Input.Name" autocomplete="name" required maxlength="120">
+<label asp-for="Input.Username">اسم المستخدم</label><input asp-for="Input.Username" autocomplete="username" required minlength="3" maxlength="32">
+<label asp-for="Input.Email">البريد الإلكتروني</label><input asp-for="Input.Email" type="email" autocomplete="email" required maxlength="256">
+<label asp-for="Input.Phone">رقم الهاتف</label><input asp-for="Input.Phone" type="tel" autocomplete="tel" required maxlength="32">
+<label asp-for="Input.Age">العمر</label><input asp-for="Input.Age" type="number" min="13" max="120" required>
+<label asp-for="Input.PhotoUrl">رابط الصورة (اختياري)</label><input asp-for="Input.PhotoUrl" type="url" maxlength="2048">
+<label asp-for="Input.Password">كلمة المرور</label><input asp-for="Input.Password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+<button type="submit">إنشاء الحساب</button></form><p><a href="/account/login">العودة إلى تسجيل الدخول</a></p></main></body></html>
