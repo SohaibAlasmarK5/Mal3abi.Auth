@@ -1,0 +1,480 @@
+/*
+ * Mal3abi account pages. Same look as the website.
+ * Colors copied from the website's single source, Mal3abi/packages/shared/src/tokens/tokens.ts.
+ * When a token changes there, change it here too.
+ */
+:root,
+[data-theme="light"] {
+  --bg: #f5f7f4;
+  --surface: #ffffff;
+  --ink: #13201a;
+  --muted: #55635b;
+  --line: #dde3de;
+  --accent: #0e7a4b;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3f2ea;
+  --accent-2: #c98a12;
+  --warning-soft: #fbf1dc;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #0e1316;
+  --surface: #172026;
+  --ink: #e9eef1;
+  --muted: #9ba8b2;
+  --line: #26313a;
+  --accent: #34c98a;
+  --accent-ink: #08140e;
+  --accent-soft: #13342a;
+  --accent-2: #e9b44c;
+  --warning-soft: #3a2e12;
+  --danger: #f97066;
+  --danger-soft: #3a1d1b;
+  color-scheme: dark;
+}
+
+:root {
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --control-height: 44px;
+  --font: "IBM Plex Sans Arabic", "IBM Plex Sans", Tahoma, system-ui, sans-serif;
+}
+
+:lang(en) {
+  --font: "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+/* Top bar */
+.auth-bar {
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.auth-bar-inner {
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-height);
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-brand small {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.auth-tools {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: var(--control-height);
+  height: var(--control-height);
+  padding-inline: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--accent-soft);
+}
+
+.tool svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-sun,
+[data-theme="dark"] .icon-moon {
+  display: none;
+}
+
+[data-theme="dark"] .icon-sun {
+  display: inline;
+}
+
+/* Page */
+.auth-main {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.card {
+  width: min(100%, 460px);
+  padding: 28px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.card h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  line-height: 1.3;
+}
+
+.card .intro {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-block-end: 16px;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.field .hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+input[type="url"],
+input:not([type]) {
+  width: 100%;
+  height: var(--control-height);
+  padding-inline: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+input::placeholder {
+  color: var(--muted);
+}
+
+input[aria-invalid="true"],
+.input-validation-error {
+  border-color: var(--danger);
+}
+
+/* Email, phone, username and codes read left to right in both languages. */
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+.ltr {
+  direction: ltr;
+  text-align: start;
+}
+
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="tel"],
+[dir="rtl"] input[type="url"],
+[dir="rtl"] .ltr {
+  text-align: end;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-height);
+  margin-block-end: 8px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--control-height);
+  padding-inline: 20px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(1.05);
+}
+
+.btn-secondary {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.btn-secondary:hover {
+  filter: none;
+  background: var(--accent-soft);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.links {
+  margin: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  font-weight: 500;
+}
+
+.divider {
+  height: 1px;
+  margin: 20px 0 4px;
+  background: var(--line);
+}
+
+/* Messages */
+.message {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  font-size: 15px;
+}
+
+.message-danger {
+  background: var(--danger-soft);
+}
+
+.message-success {
+  background: var(--accent-soft);
+}
+
+.message-warning {
+  background: var(--warning-soft);
+}
+
+.message svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-block-start: 2px;
+}
+
+.message-danger svg {
+  color: var(--danger);
+}
+
+.message-success svg {
+  color: var(--accent);
+}
+
+.message-warning svg {
+  color: var(--accent-2);
+}
+
+.validation-summary-valid {
+  display: none;
+}
+
+.validation-summary-errors {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--danger-soft);
+}
+
+.validation-summary-errors ul {
+  margin: 0;
+  padding-inline-start: 18px;
+}
+
+.field-validation-error {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+/* Setup key for authenticator apps */
+.key {
+  display: block;
+  margin: 6px 0 16px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  word-break: break-all;
+  direction: ltr;
+  text-align: center;
+}
+
+/* Six-digit code: one real input over six boxes (works with paste and autofill). */
+.code {
+  position: relative;
+  direction: ltr;
+  margin-block-end: 8px;
+}
+
+.code input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 1px;
+  opacity: 0.01;
+}
+
+.code-slots {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.code-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.code:focus-within .code-slot.is-active {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.code[data-state="wrong"] .code-slot,
+.code[data-state="expired"] .code-slot,
+.code[data-state="attempts"] .code-slot {
+  border-color: var(--danger);
+}
+
+.resend {
+  margin-block-start: 12px;
+}
+
+/* Footer */
+.auth-foot {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.auth-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--muted);
+}
+
+@media (max-width: 420px) {
+  .auth-brand small {
+    display: none;
+  }
+
+  .card {
+    padding: 22px 16px;
+  }
+
+  .code-slots {
+    gap: 6px;
+  }
+
+  .code-slot {
+    height: 50px;
+  }
+}

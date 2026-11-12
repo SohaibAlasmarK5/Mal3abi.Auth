@@ -1,4 +1,13 @@
 @page "/account/confirm-email"
 @model Mal3abi.Auth.API.Pages.Account.ConfirmEmailModel
-@{ Layout = null; ViewData["Title"] = "تأكيد البريد الإلكتروني | ملعبي"; }
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>@ViewData["Title"]</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;background:#0b1220;color:#eef2f8;font:1rem "Segoe UI",Tahoma,Arial}main{width:min(100%,480px);padding:28px;border:1px solid #2b3b55;border-radius:16px;background:#172338;text-align:center}p{color:#aebbd0;line-height:1.7}a{color:#48adff}</style></head><body><main><h1>@Model.Heading</h1><p>@Model.Message</p><a href="@Model.LoginUrl">الذهاب إلى تسجيل الدخول</a></main></body></html>
+@{
+    Layout = "_AuthLayout";
+    var ui = AuthUi.For(HttpContext.Request);
+    var heading = string.IsNullOrWhiteSpace(Model.Heading) ? ui.T("confirm.title") : ui.Server(Model.Heading);
+    ViewData["Title"] = heading;
+    // The page model sets an Arabic heading; a failure heading starts with "تعذر" ("could not").
+    var failed = Model.Heading?.StartsWith("تعذر") == true;
+}
+<h1>@heading</h1>
+<partial name="_Message" model="@((failed ? "danger" : "success", ui.Server(Model.Message)))" />
+<a class="btn" href="@Model.LoginUrl">@ui.T("confirm.goToLogin")</a>
