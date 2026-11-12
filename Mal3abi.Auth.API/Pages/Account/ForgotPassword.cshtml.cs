@@ -15,7 +15,6 @@ public sealed class ForgotPasswordModel(IAccountService accounts, IConfiguration
     {
         if (Invalid(NewFieldErrors().Email(nameof(Email), Email, "forgot.email"))) return Page();
         var result = await accounts.SendPasswordResetAsync(Email!, AccountEndpoints.PublicUrl(HttpContext, configuration, "/account/reset-password"), cancellationToken);
-        // The same answer whether or not the account exists.
         if (result.Succeeded) SuccessMessage = Ui.T("forgot.sent");
         else ShowError(result.Error);
         return Page();

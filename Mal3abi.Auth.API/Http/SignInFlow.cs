@@ -7,10 +7,6 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Mal3abi.Auth.API.Http;
 
-/// <summary>
-/// A sign-in that is half done: the password was right, and the email code or the two-step
-/// code is still needed. Kept for 15 minutes in an encrypted, HTTP-only cookie.
-/// </summary>
 public sealed record PendingSignIn(Guid UserId, string Step, bool RememberMe, string? ReturnUrl, DateTimeOffset ExpiresAt)
 {
     public const string ConfirmEmail = "confirm";
@@ -62,7 +58,6 @@ public sealed class SignInFlow(
 
     public void ClearPending() => Context.Response.Cookies.Delete(CookieName, new CookieOptions { Path = "/account", Secure = true });
 
-    /// <summary>Signs in to the Auth Center cookie, records it, and remembers the page language for emails.</summary>
     public async Task CompleteAsync(AuthUser user, bool rememberMe, bool withTwoFactor)
     {
         Claim[] claims = [new(AuthClaims.Amr, withTwoFactor ? AuthClaims.Mfa : AuthClaims.Pwd)];
@@ -72,7 +67,6 @@ public sealed class SignInFlow(
         ClearPending();
     }
 
-    /// <summary>Where to go after signing in: a local return URL, otherwise the website.</summary>
     public string Destination(string? returnUrl) => SafeReturnUrl(returnUrl) ?? WebsiteUrl(AuthUi.For(Context.Request).Lang);
 
     public string WebsiteUrl(string lang) => (configuration["Website:Url"] ?? "http://localhost:3000").TrimEnd('/') + "/" + lang;
@@ -80,7 +74,6 @@ public sealed class SignInFlow(
     public static string? SafeReturnUrl(string? returnUrl)
     {
         if (string.IsNullOrWhiteSpace(returnUrl)) return null;
-        // Local paths only ("/connect/authorize?..."), never "//host" or "/\host".
         if (returnUrl[0] != '/' || returnUrl.StartsWith("//", StringComparison.Ordinal) || returnUrl.StartsWith("/\\", StringComparison.Ordinal)) return null;
         return returnUrl;
     }

@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Mal3abi.Auth.API.Pages.Account;
 
-/// <summary>The step after the password: an email code (owners, players who chose it) or the authenticator app (admins).</summary>
 public sealed class TwoStepModel(IAccountService accounts, ITwoFactorService twoFactor, IVerificationCodeService codes, SignInFlow flow) : AuthPageModel
 {
     [BindProperty]
@@ -63,7 +62,6 @@ public sealed class TwoStepModel(IAccountService accounts, ITwoFactorService two
         return (user, pending);
     }
 
-    /// <summary>"sohaib@example.com" becomes "so****@example.com".</summary>
     public static string Mask(string? email)
     {
         if (string.IsNullOrEmpty(email)) return "";

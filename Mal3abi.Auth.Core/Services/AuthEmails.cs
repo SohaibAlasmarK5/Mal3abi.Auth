@@ -1,9 +1,8 @@
 using System.Net;
 using Mal3abi.Auth.Core.Codes;
 
-namespace Mal3abi.Auth.Infra.Email;
+namespace Mal3abi.Auth.Core.Services;
 
-/// <summary>The emails the Auth Center sends, in Modern Standard Arabic and English.</summary>
 public static class AuthEmails
 {
     public sealed record Message(string Subject, string Html);

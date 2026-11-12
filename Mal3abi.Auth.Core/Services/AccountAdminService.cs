@@ -2,19 +2,12 @@ using Mal3abi.Auth.Core.Accounts;
 using Mal3abi.Auth.Core.Audit;
 using Mal3abi.Auth.Core.Bans;
 using Mal3abi.Auth.Core.Common;
-using Mal3abi.Auth.Infra.Data;
-using Mal3abi.Auth.Infra.Email;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
-namespace Mal3abi.Auth.Infra.Services;
+namespace Mal3abi.Auth.Core.Services;
 
-/// <summary>
-/// Admin actions on accounts: staged penalties (warning, suspension, permanent ban, reference
-/// section 9), hiding and restoring. Every change is written to the audit log with its reason.
-/// </summary>
 public sealed class AccountAdminService(
-    AuthDbContext db,
+    IAccountRepository accounts,
     UserManager<AuthUser> users,
     IRepository<BannedIdentifier> bans,
     IUnitOfWork unitOfWork,
@@ -25,52 +18,23 @@ public sealed class AccountAdminService(
 {
     public async Task<PagedResult<AccountSummary>> ListAsync(AccountQuery query, CancellationToken cancellationToken = default)
     {
-        IQueryable<AuthUser> accounts = query.IncludeDeleted ? db.Users.IgnoreQueryFilters() : db.Users;
-
-        if (AuthRoles.FromPublic(query.Role) is { } role)
-        {
-            var normalizedRole = role.ToUpperInvariant();
-            var roleUserIds = from userRole in db.UserRoles
-                              join r in db.Roles on userRole.RoleId equals r.Id
-                              where r.NormalizedName == normalizedRole
-                              select userRole.UserId;
-            accounts = accounts.Where(u => roleUserIds.Contains(u.Id));
-        }
-        if (!string.IsNullOrWhiteSpace(query.Search))
-        {
-            var term = query.Search.Trim();
-            accounts = accounts.Where(u =>
-                u.FullName.Contains(term) || u.UserName!.Contains(term) || u.Email!.Contains(term) || u.PhoneNumber!.Contains(term));
-        }
-        if (Enum.TryParse<AccountStatus>(query.Status, ignoreCase: true, out var status))
-            accounts = accounts.Where(u => u.Status == status);
-
-        var page = Math.Max(1, query.Page);
-        var pageSize = Math.Clamp(query.PageSize, 1, 200);
-        var total = await accounts.CountAsync(cancellationToken);
-        var items = await accounts.AsNoTracking()
-            .OrderByDescending(u => u.CreatedAt)
-            .Skip((page - 1) * pageSize).Take(pageSize)
-            .ToListAsync(cancellationToken);
-        var roles = await RolesForAsync(items.Select(u => u.Id), cancellationToken);
-        var summaries = items.Select(u => u.ToSummary(roles.GetValueOrDefault(u.Id, []))).ToList();
-        return new PagedResult<AccountSummary>(summaries, page, pageSize, total);
+        var page = await accounts.SearchAsync(query, cancellationToken);
+        var roles = await accounts.GetRolesAsync(page.Items.Select(u => u.Id).ToList(), cancellationToken);
+        return page.Map(u => u.ToSummary(RolesOf(roles, u.Id)));
     }
 
     public async Task<AccountSummary?> GetAsync(Guid userId, bool includeDeleted = false, CancellationToken cancellationToken = default)
     {
-        var user = await LoadAsync(userId, includeDeleted, cancellationToken);
-        if (user is null) return null;
-        var roles = await RolesForAsync([user.Id], cancellationToken);
-        return user.ToSummary(roles.GetValueOrDefault(user.Id, []));
+        var user = await accounts.FindAsync(userId, includeDeleted, cancellationToken);
+        return user is null ? null : await SummaryAsync(user, cancellationToken);
     }
 
     public async Task<IReadOnlyList<AccountSummary>> GetManyAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken = default)
     {
         var ids = userIds.Distinct().Take(200).ToList();
-        var items = await db.Users.AsNoTracking().Where(u => ids.Contains(u.Id)).ToListAsync(cancellationToken);
-        var roles = await RolesForAsync(ids, cancellationToken);
-        return items.Select(u => u.ToSummary(roles.GetValueOrDefault(u.Id, []))).ToList();
+        var items = await accounts.GetManyAsync(ids, cancellationToken);
+        var roles = await accounts.GetRolesAsync(ids, cancellationToken);
+        return items.Select(u => u.ToSummary(RolesOf(roles, u.Id))).ToList();
     }
 
     public async Task<IReadOnlyList<AccountSummary>> ListSuperAdminsAsync(CancellationToken cancellationToken = default)
@@ -116,7 +80,6 @@ public sealed class AccountAdminService(
         user.SuspendedUntil = null;
         user.StatusReason = change.Reason;
 
-        // The same email or phone may not register again.
         if (!string.IsNullOrEmpty(user.NormalizedEmail) &&
             !await bans.AnyAsync(b => b.Kind == BanKind.Email && b.Value == user.NormalizedEmail, cancellationToken))
             bans.Add(new BannedIdentifier { Kind = BanKind.Email, Value = user.NormalizedEmail, UserId = user.Id, Reason = change.Reason });
@@ -152,38 +115,35 @@ public sealed class AccountAdminService(
 
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         label.Set(AuditActions.Deleted, reason);
-        db.Users.Remove(user);
+        accounts.Remove(user);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 
     public async Task<Result<AccountSummary>> RestoreAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var user = await LoadAsync(userId, includeDeleted: true, cancellationToken);
+        var user = await accounts.FindAsync(userId, includeDeleted: true, cancellationToken);
         if (user is null) return new Error(ErrorCodes.NotFound);
-        if (!user.IsDeleted) return await GetAsync(userId, cancellationToken: cancellationToken) is { } summary ? summary : new Error(ErrorCodes.NotFound);
 
-        user.IsDeleted = false;
-        user.DeletedAt = null;
-        label.Set(AuditActions.Restored);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        var roles = await RolesForAsync([user.Id], cancellationToken);
-        return user.ToSummary(roles.GetValueOrDefault(user.Id, []));
+        if (user.IsDeleted)
+        {
+            user.IsDeleted = false;
+            user.DeletedAt = null;
+            label.Set(AuditActions.Restored);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        return await SummaryAsync(user, cancellationToken);
     }
 
     private async Task<Result<AuthUser>> TargetAsync(Guid userId, CancellationToken cancellationToken)
     {
         if (actor.UserId == userId) return new Error(ErrorCodes.NotAllowed);
-        var user = await LoadAsync(userId, includeDeleted: false, cancellationToken);
+        var user = await accounts.FindAsync(userId, includeDeleted: false, cancellationToken);
         return user is null ? new Error(ErrorCodes.NotFound) : user;
     }
 
-    private Task<AuthUser?> LoadAsync(Guid userId, bool includeDeleted, CancellationToken cancellationToken) =>
-        (includeDeleted ? db.Users.IgnoreQueryFilters() : db.Users).FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
-
     private async Task<Result<AccountSummary>> SaveAndNotifyAsync(AuthUser user, string action, StatusChange change, CancellationToken cancellationToken, bool endSessions = false)
     {
-        // A new security stamp ends cookie sessions; token requests check the status anyway.
         if (endSessions) user.SecurityStamp = Guid.NewGuid().ToString("N");
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -194,18 +154,15 @@ public sealed class AccountAdminService(
             catch (Exception) when (!cancellationToken.IsCancellationRequested) { }
         }
 
-        var roles = await RolesForAsync([user.Id], cancellationToken);
-        return user.ToSummary(roles.GetValueOrDefault(user.Id, []));
+        return await SummaryAsync(user, cancellationToken);
     }
 
-    private async Task<Dictionary<Guid, List<string>>> RolesForAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken)
+    private async Task<AccountSummary> SummaryAsync(AuthUser user, CancellationToken cancellationToken)
     {
-        var ids = userIds.ToList();
-        var rows = await (from userRole in db.UserRoles
-                          join role in db.Roles on userRole.RoleId equals role.Id
-                          where ids.Contains(userRole.UserId)
-                          select new { userRole.UserId, role.Name })
-                         .ToListAsync(cancellationToken);
-        return rows.GroupBy(r => r.UserId).ToDictionary(g => g.Key, g => g.Select(r => r.Name ?? string.Empty).ToList());
+        var roles = await accounts.GetRolesAsync([user.Id], cancellationToken);
+        return user.ToSummary(RolesOf(roles, user.Id));
     }
+
+    private static IReadOnlyList<string> RolesOf(IReadOnlyDictionary<Guid, IReadOnlyList<string>> roles, Guid userId) =>
+        roles.TryGetValue(userId, out var list) ? list : [];
 }

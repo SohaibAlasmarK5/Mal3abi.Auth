@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Mal3abi.Auth.API.Pages.Account;
 
-/// <summary>Signs out of the Auth Center only. The website signs out through BE and /connect/logout.</summary>
 public sealed class LogoutModel(SignInManager<AuthUser> signInManager, SignInFlow flow) : AuthPageModel
 {
     public void OnGet() { }

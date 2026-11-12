@@ -7,10 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Mal3abi.Auth.Infra.Email;
 
-/// <summary>
-/// Sends through SMTP (Email:Smtp:*). In Development without SMTP settings, the email is written
-/// to the log instead, so codes can be read from the console.
-/// </summary>
 public sealed class SmtpEmailSender(IConfiguration configuration, IHostEnvironment environment, ILogger<SmtpEmailSender> logger) : IEmailSender
 {
     public async Task SendAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)

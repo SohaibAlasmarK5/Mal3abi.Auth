@@ -42,7 +42,6 @@ public class Repository<T>(AuthDbContext db) : IRepository<T> where T : class, I
     public void Add(T entity) => Set.Add(entity);
     public void Update(T entity) => Set.Update(entity);
 
-    // The interceptor turns this into a soft delete for ISoftDeletable entities.
     public void Remove(T entity) => Set.Remove(entity);
 }
 

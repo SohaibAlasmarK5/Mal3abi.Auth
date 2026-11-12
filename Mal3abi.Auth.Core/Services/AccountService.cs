@@ -3,17 +3,16 @@ using Mal3abi.Auth.Core.Audit;
 using Mal3abi.Auth.Core.Bans;
 using Mal3abi.Auth.Core.Codes;
 using Mal3abi.Auth.Core.Common;
-using Mal3abi.Auth.Infra.Email;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.EntityFrameworkCore;
 using System.Text;
 
-namespace Mal3abi.Auth.Infra.Services;
+namespace Mal3abi.Auth.Core.Services;
 
 public sealed class AccountService(
     UserManager<AuthUser> users,
     SignInManager<AuthUser> signIn,
+    IAccountRepository accounts,
     IRepository<BannedIdentifier> bans,
     IVerificationCodeService codes,
     IAuditService audit,
@@ -55,7 +54,6 @@ public sealed class AccountService(
             return roleResult.ToError();
         }
 
-        // A failure here (for example SMTP down) must not lose the account: the user can resend.
         try { await SendConfirmationCodeAsync(user, cancellationToken); }
         catch (Exception) when (!cancellationToken.IsCancellationRequested) { }
         return user;
@@ -77,7 +75,6 @@ public sealed class AccountService(
     public async Task<Result<AuthUser>> ConfirmEmailAsync(string emailAddress, string code, CancellationToken cancellationToken = default)
     {
         var user = await users.FindByEmailAsync(emailAddress.Trim());
-        // Same answer as an expired code, so the endpoint does not reveal which emails exist.
         return user is null ? new Error(ErrorCodes.CodeExpired) : await ConfirmAsync(user, code, cancellationToken);
     }
 
@@ -302,7 +299,7 @@ public sealed class AccountService(
             return roleResult.ToError();
         }
 
-        var token = await users.GenerateUserTokenAsync(user, InvitationTokenProviderOptions.ProviderName, InvitationTokenProviderOptions.Purpose);
+        var token = await users.GenerateUserTokenAsync(user, InvitationTokens.ProviderName, InvitationTokens.Purpose);
         var link = QueryHelpers.AddQueryString(acceptPageUrl, new Dictionary<string, string?>
         {
             ["userId"] = user.Id.ToString(),
@@ -320,7 +317,7 @@ public sealed class AccountService(
         var decoded = Decode(token);
         if (user is null || decoded is null || !user.IsInvited || await users.HasPasswordAsync(user))
             return new Error(ErrorCodes.InvitationInvalid);
-        if (!await users.VerifyUserTokenAsync(user, InvitationTokenProviderOptions.ProviderName, InvitationTokenProviderOptions.Purpose, decoded))
+        if (!await users.VerifyUserTokenAsync(user, InvitationTokens.ProviderName, InvitationTokens.Purpose, decoded))
             return new Error(ErrorCodes.InvitationInvalid);
 
         var added = await users.AddPasswordAsync(user, password);
@@ -330,7 +327,6 @@ public sealed class AccountService(
         label.Set(AuditActions.InvitationAccepted);
         await users.UpdateAsync(user);
 
-        // Invited accounts confirm their email with a code too (reference section 16).
         try { await SendConfirmationCodeAsync(user, cancellationToken); }
         catch (Exception) when (!cancellationToken.IsCancellationRequested) { }
         return user;
@@ -359,7 +355,6 @@ public sealed class AccountService(
         return user.TwoFactorMethod == TwoFactorMethod.Email ? TwoFactorMethod.Email : TwoFactorMethod.None;
     }
 
-    /// <summary>Banned and currently suspended accounts may not sign in. An ended suspension is lifted here.</summary>
     private async Task<Error?> StatusErrorAsync(AuthUser user)
     {
         switch (user.Status)
@@ -379,26 +374,20 @@ public sealed class AccountService(
         }
     }
 
-    /// <summary>
-    /// Email, username and phone checks across all accounts, hidden ones included (a hidden
-    /// account can be restored, so its email stays reserved), and against permanent bans.
-    /// </summary>
     private async Task<Result> CheckAvailableAsync(string? emailAddress, string? username, string? normalizedPhone, Guid? exceptUserId, CancellationToken cancellationToken)
     {
-        var all = users.Users.IgnoreQueryFilters().Where(u => exceptUserId == null || u.Id != exceptUserId);
-
         if (emailAddress is not null)
         {
             var normalized = users.NormalizeEmail(emailAddress);
             if (await bans.AnyAsync(b => b.Kind == BanKind.Email && b.Value == normalized, cancellationToken))
                 return new Error(ErrorCodes.AccountBanned);
-            if (await all.AnyAsync(u => u.NormalizedEmail == normalized, cancellationToken))
+            if (await accounts.EmailInUseAsync(normalized, exceptUserId, cancellationToken))
                 return new Error(ErrorCodes.EmailTaken);
         }
         if (username is not null)
         {
             var normalized = users.NormalizeName(username);
-            if (await all.AnyAsync(u => u.NormalizedUserName == normalized, cancellationToken))
+            if (await accounts.UserNameInUseAsync(normalized, exceptUserId, cancellationToken))
                 return new Error(ErrorCodes.UsernameTaken);
         }
         if (normalizedPhone is not null &&
@@ -407,9 +396,7 @@ public sealed class AccountService(
         return Result.Success();
     }
 
-    /// <summary>Removes an account that was never usable (failed sign-up step), bypassing soft delete.</summary>
-    private async Task HardDeleteAsync(AuthUser user) =>
-        await users.Users.IgnoreQueryFilters().Where(u => u.Id == user.Id).ExecuteDeleteAsync();
+    private Task HardDeleteAsync(AuthUser user) => accounts.HardDeleteAsync(user.Id);
 
     private static string Encode(string token) => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 

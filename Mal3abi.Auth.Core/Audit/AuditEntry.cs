@@ -2,10 +2,6 @@ using Mal3abi.Auth.Core.Common;
 
 namespace Mal3abi.Auth.Core.Audit;
 
-/// <summary>
-/// Who did what, when, with the value before and after (reference section 16). Rows are only
-/// added, never changed.
-/// </summary>
 public sealed class AuditEntry : IEntity
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -15,13 +11,11 @@ public sealed class AuditEntry : IEntity
     public string ActorName { get; set; } = string.Empty;
     public string? IpAddress { get; set; }
 
-    /// <summary>For example "account.updated", "account.suspended", "signin.failed".</summary>
     public string Action { get; set; } = string.Empty;
 
     public string EntityType { get; set; } = string.Empty;
     public string? EntityId { get; set; }
 
-    /// <summary>JSON of the changed values before and after.</summary>
     public string? Before { get; set; }
     public string? After { get; set; }
     public string? Note { get; set; }
@@ -75,7 +69,6 @@ public sealed record AuditEntryView(
 
 public interface IAuditService
 {
-    /// <summary>Adds an entry and saves it at once (security events happen outside other changes).</summary>
     Task RecordAsync(string action, string entityType, string? entityId, object? before = null, object? after = null, string? note = null, CancellationToken cancellationToken = default);
 
     Task<PagedResult<AuditEntryView>> SearchAsync(AuditQuery query, CancellationToken cancellationToken = default);

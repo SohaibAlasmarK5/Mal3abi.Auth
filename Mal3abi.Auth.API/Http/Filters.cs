@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Mal3abi.Auth.API.Http;
 
-/// <summary>Mal3abi.BE calls /api/integration with the shared secret in X-Mal3abi-Integration-Key.</summary>
 public sealed class IntegrationKeyFilter(IConfiguration configuration, IHostEnvironment environment) : IEndpointFilter
 {
     public const string Header = "X-Mal3abi-Integration-Key";
@@ -27,10 +26,6 @@ public sealed class IntegrationKeyFilter(IConfiguration configuration, IHostEnvi
     }
 }
 
-/// <summary>
-/// Calls that change something and ride on the Auth Center cookie must carry the antiforgery
-/// token (X-CSRF-TOKEN, from GET /api/accounts/csrf). Bearer-token calls do not need it.
-/// </summary>
 public sealed class CsrfFilter(IAntiforgery antiforgery) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
@@ -53,7 +48,6 @@ public sealed class CsrfFilter(IAntiforgery antiforgery) : IEndpointFilter
     }
 }
 
-/// <summary>Runs a request's own checks before the handler, so handlers only see valid input.</summary>
 public interface IValidatedRequest
 {
     void Validate(FieldErrors errors);

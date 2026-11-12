@@ -5,10 +5,6 @@ using Mal3abi.Auth.Core.Common;
 
 namespace Mal3abi.Auth.API.Http;
 
-/// <summary>
-/// Field checks shared by the API requests and the pages, with messages from <see cref="AuthUi"/>,
-/// so validation reads the same in both languages everywhere.
-/// </summary>
 public sealed partial class FieldErrors(AuthUi ui)
 {
     private readonly Dictionary<string, List<string>> errors = [];

@@ -4,12 +4,8 @@ using Mal3abi.Auth.Core.Codes;
 using Mal3abi.Auth.Core.Common;
 using Microsoft.AspNetCore.Identity;
 
-namespace Mal3abi.Auth.Infra.Services;
+namespace Mal3abi.Auth.Core.Services;
 
-/// <summary>
-/// Two-step verification by role (reference section 16): an authenticator app for admins, an
-/// email code for court owners, and an optional email code for players.
-/// </summary>
 public sealed class TwoFactorService(
     UserManager<AuthUser> users,
     IVerificationCodeService codes,

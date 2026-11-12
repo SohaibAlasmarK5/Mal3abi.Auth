@@ -3,11 +3,6 @@ using Mal3abi.Auth.Core.Common;
 
 namespace Mal3abi.Auth.API.Http;
 
-/// <summary>
-/// Turns service results into HTTP answers. Every error is problem+json with a stable "code",
-/// a "message" in the request's language, and "errors" when there are field or rule messages.
-/// "message" also keeps Mal3abi.BE's existing reader (it reads { message }) working.
-/// </summary>
 public static class ApiResults
 {
     public static int StatusFor(string code) => code switch

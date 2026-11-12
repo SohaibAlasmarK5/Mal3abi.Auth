@@ -8,10 +8,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Mal3abi.Auth.Infra.Jobs;
 
-/// <summary>
-/// Every hour: deletes accounts that did not confirm their email within seven days, so the
-/// email and username are free again (reference section 16), and old codes.
-/// </summary>
 public sealed class UnconfirmedAccountCleanup(IServiceScopeFactory scopes, TimeProvider time, ILogger<UnconfirmedAccountCleanup> logger) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
@@ -48,7 +44,6 @@ public sealed class UnconfirmedAccountCleanup(IServiceScopeFactory scopes, TimeP
         if (stale.Count > 0)
         {
             var ids = stale.Select(u => u.Id).ToList();
-            // Identity tables and codes are removed by cascade.
             await db.Users.IgnoreQueryFilters().Where(u => ids.Contains(u.Id)).ExecuteDeleteAsync(cancellationToken);
             db.AuditEntries.AddRange(stale.Select(u => new AuditEntry
             {

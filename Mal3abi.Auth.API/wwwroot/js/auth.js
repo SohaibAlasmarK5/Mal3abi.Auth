@@ -1,15 +1,12 @@
-// Mal3abi account pages: theme toggle, remembered language, and the six-digit code input.
 (function () {
   "use strict";
 
   var root = document.documentElement;
 
-  // Remember the language shown, so the next page (and the form post) keeps it.
   document.cookie =
     "mal3abi-lang=" + root.lang + "; path=/; max-age=31536000; SameSite=Lax" +
     (location.protocol === "https:" ? "; Secure" : "");
 
-  // Theme toggle. The early script in <head> already applied the saved or system theme.
   var toggle = document.querySelector("[data-theme-toggle]");
   if (toggle) {
     toggle.addEventListener("click", function () {
@@ -18,12 +15,10 @@
       try {
         localStorage.setItem("mal3abi-theme", next);
       } catch (e) {
-        // Storage blocked: the theme still applies for this page.
       }
     });
   }
 
-  // Six-digit code: accept Western and Arabic-Indic digits, keep only six, mirror into the boxes.
   var arabicDigits = "٠١٢٣٤٥٦٧٨٩";
   function normalize(value) {
     var out = "";
@@ -53,14 +48,12 @@
 
     input.addEventListener("input", render);
     input.addEventListener("focus", function () {
-      // Keep the caret at the end so typing always fills the next box.
       var end = input.value.length;
       input.setSelectionRange(end, end);
     });
     render();
   });
 
-  // Resend button: wait, then allow a new code.
   document.querySelectorAll("[data-resend]").forEach(function (button) {
     var seconds = parseInt(button.dataset.seconds || "60", 10);
     var waitText = button.dataset.waitText || "";

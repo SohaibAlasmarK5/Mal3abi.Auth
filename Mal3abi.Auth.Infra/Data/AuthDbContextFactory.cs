@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace Mal3abi.Auth.Infra.Data;
 
-/// <summary>Used only by "dotnet ef" to build migrations. It never connects.</summary>
 public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbContext>
 {
     public AuthDbContext CreateDbContext(string[] args)

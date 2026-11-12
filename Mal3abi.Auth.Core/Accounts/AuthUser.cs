@@ -12,10 +12,8 @@ public sealed class AuthUser : IdentityUser<Guid>, IEntity, IAuditable, ISoftDel
     public int? Age { get; set; }
     public string? PhotoUrl { get; set; }
 
-    /// <summary>Digits only, used for bans (see <see cref="PhoneNumbers"/>).</summary>
     public string? NormalizedPhone { get; set; }
 
-    /// <summary>"ar" or "en": the language of the emails we send.</summary>
     public string PreferredLanguage { get; set; } = "ar";
 
     public TwoFactorMethod TwoFactorMethod { get; set; } = TwoFactorMethod.None;
@@ -25,7 +23,6 @@ public sealed class AuthUser : IdentityUser<Guid>, IEntity, IAuditable, ISoftDel
     public string? StatusReason { get; set; }
     public int WarningCount { get; set; }
 
-    /// <summary>Created by an admin invitation; the password is set when it is accepted.</summary>
     public bool IsInvited { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
@@ -57,7 +54,6 @@ public static class AuthRoles
 
     public static readonly string[] All = [Player, Owner, SuperAdmin];
 
-    /// <summary>The role name in tokens and API responses: player, owner or superadmin.</summary>
     public static string ToPublic(IEnumerable<string> roles)
     {
         var list = roles.ToList();
@@ -77,10 +73,6 @@ public static class AuthRoles
 
 public static class PhoneNumbers
 {
-    /// <summary>
-    /// Digits only, with Jordanian local numbers in international form: "079 123 4567",
-    /// "+962791234567" and "00962791234567" all become "962791234567".
-    /// </summary>
     public static string? Normalize(string? phone)
     {
         if (string.IsNullOrWhiteSpace(phone)) return null;

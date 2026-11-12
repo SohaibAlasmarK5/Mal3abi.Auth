@@ -5,10 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Mal3abi.Auth.API.Pages.Account;
 
-/// <summary>
-/// Two-step settings by role: admins set up the authenticator app (required before the admin
-/// dashboard), owners see that the email code is always on, players turn it on or off.
-/// </summary>
 public sealed class SecurityModel(IAccountService accounts, ITwoFactorService twoFactor, SignInFlow flow, IConfiguration configuration) : AuthPageModel
 {
     [BindProperty]
@@ -35,7 +31,6 @@ public sealed class SecurityModel(IAccountService accounts, ITwoFactorService tw
             return Page();
         }
 
-        // The app code was just checked: renew the session as a two-step session, then continue.
         await flow.CompleteAsync(user, rememberMe: false, withTwoFactor: true);
         var returnUrl = SignInFlow.SafeReturnUrl(ReturnUrl);
         if (returnUrl is not null) return Redirect(returnUrl);

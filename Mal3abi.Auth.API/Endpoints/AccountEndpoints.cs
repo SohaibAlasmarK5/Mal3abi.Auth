@@ -6,11 +6,6 @@ using Microsoft.AspNetCore.Antiforgery;
 
 namespace Mal3abi.Auth.API.Endpoints;
 
-/// <summary>
-/// Account API for the website and the mobile app: sign-up, email codes, passwords, and the
-/// signed-in user's own account (/api/accounts/me). Sign-in itself happens on the account pages
-/// through OIDC, so tokens never pass through these endpoints.
-/// </summary>
 public static class AccountEndpoints
 {
     public static void MapAccountEndpoints(this IEndpointRouteBuilder app)
@@ -87,7 +82,6 @@ public static class AccountEndpoints
             {
                 method = user.TwoFactorMethod.ToString().ToLowerInvariant(),
                 required = required.ToString().ToLowerInvariant(),
-                // Only players choose; owners and admins always use two-step.
                 canChange = (await accounts.GetRolesAsync(user)).All(r => r == AuthRoles.Player),
             });
         });

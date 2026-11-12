@@ -6,10 +6,6 @@ using Mal3abi.Auth.Core.Common;
 
 namespace Mal3abi.Auth.API.Endpoints;
 
-/// <summary>
-/// Super admin API (/api/admin): accounts, invitations, penalties, hiding and restoring, and
-/// the audit log. Requires the superadmin role and a two-step session.
-/// </summary>
 public static class AdminEndpoints
 {
     public static void MapAdminEndpoints(this IEndpointRouteBuilder app)
@@ -42,7 +38,6 @@ public static class AdminEndpoints
             Results.Ok(await audit.SearchAsync(new AuditQuery(entityId, actorId, action, from, to, page ?? 1, pageSize ?? 50), ct)));
     }
 
-    /// <summary>warn, suspend, ban and reinstate; shared with the integration API.</summary>
     public static void MapStatusActions(RouteGroupBuilder group)
     {
         group.MapPost("/accounts/{id:guid}/warn", async (Guid id, StatusRequest request, HttpContext context, IAccountAdminService service, CancellationToken ct) =>

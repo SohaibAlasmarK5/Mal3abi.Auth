@@ -1,9 +1,8 @@
 using System.Text.Json;
 using Mal3abi.Auth.Core.Audit;
 using Mal3abi.Auth.Core.Common;
-using Microsoft.EntityFrameworkCore;
 
-namespace Mal3abi.Auth.Infra.Services;
+namespace Mal3abi.Auth.Core.Services;
 
 public sealed class AuditService(IRepository<AuditEntry> entries, IUnitOfWork unitOfWork, ICurrentActor actor, TimeProvider time) : IAuditService
 {
@@ -28,9 +27,9 @@ public sealed class AuditService(IRepository<AuditEntry> entries, IUnitOfWork un
     public async Task<PagedResult<AuditEntryView>> SearchAsync(AuditQuery query, CancellationToken cancellationToken = default)
     {
         var rows = entries.QueryNoTracking();
-        if (query.EntityId is { } entityId) rows = rows.Where(e => e.EntityId == entityId.ToString());
+        if (query.EntityId?.ToString() is { } entityId) rows = rows.Where(e => e.EntityId == entityId);
         if (query.ActorId is { } actorId) rows = rows.Where(e => e.ActorId == actorId);
-        if (!string.IsNullOrWhiteSpace(query.Action)) rows = rows.Where(e => e.Action.StartsWith(query.Action));
+        if (query.Action is { Length: > 0 } action) rows = rows.Where(e => e.Action.StartsWith(action));
         if (query.From is { } from) rows = rows.Where(e => e.CreatedAt >= from);
         if (query.To is { } to) rows = rows.Where(e => e.CreatedAt <= to);
 

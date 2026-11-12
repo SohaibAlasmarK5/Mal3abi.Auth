@@ -1,9 +1,3 @@
-@*
-    Six-digit code input: one real input (paste, autofill and screen readers work) drawn as six boxes.
-    Digits always read left to right. Use for authenticator codes and, once the auth center sends
-    them, email verification codes:
-        <partial name="_CodeInput" model="new CodeInput(Name: "Code", Label: ui.T("security.codeLabel"), ResendHandler: "Resend")" />
-*@
 @model CodeInput
 @{
     var ui = AuthUi.For(Context.Request);

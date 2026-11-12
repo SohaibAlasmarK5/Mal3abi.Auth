@@ -9,15 +9,17 @@ Jira epic: KAN-42.
 
 | Project | Holds |
 |---|---|
-| `Mal3abi.Auth.Core` | Entities and contracts only: `Entity`, `IRepository<T>`, `IUnitOfWork`, `Result`/`Error`/`ErrorCodes`, `AuthUser`, service interfaces. |
-| `Mal3abi.Auth.Infra` | EF Core (`AuthDbContext`, migrations), the generic `Repository<T>`, `UnitOfWork`, the audit interceptor, services, email, the cleanup job, seeding. |
+| `Mal3abi.Auth.Core` | Entities, interfaces (`IRepository<T>`, `IAccountRepository`, `IVerificationCodeRepository`, `IUnitOfWork`, service interfaces), `Result`/`Error`/`ErrorCodes`, and the services with the business rules (`Services/`), including the email texts. No reference to EF Core. |
+| `Mal3abi.Auth.Infra` | EF Core (`AuthDbContext`, migrations), the generic `Repository<T>` and the specific repositories, `UnitOfWork`, the audit interceptor, the SMTP sender, the invitation token provider, the cleanup job, seeding. |
 | `Mal3abi.Auth.API` | Minimal API endpoints (`Endpoints/`), OIDC endpoints, Razor account pages (`Pages/Account`), the text helper `Ui/AuthUi` (Arabic and English). |
 
 ## Rules the code follows
 
-- **Repository and unit of work.** Services use `IRepository<T>` (generic, one per entity) and save
-  once per operation with `IUnitOfWork`. A specific repository is added only for a query that does
-  not fit. Identity users and roles stay on `UserManager`, which already is a repository.
+- **Repository and unit of work.** Services in Core use `IRepository<T>` (generic, one per entity)
+  and save once per operation with `IUnitOfWork`. A specific repository (`IAccountRepository`,
+  `IVerificationCodeRepository`) extends the generic one only for queries that do not fit. Identity
+  users and roles stay on `UserManager`, which already is a repository.
+- **No comments in code.** Names and this README explain the code.
 - **One place for common rules.** `AuditSaveChangesInterceptor` fills `CreatedAt`/`UpdatedAt`,
   turns deletes of `ISoftDeletable` rows into hiding, and writes an audit row (before and after) for
   every change to an `[Audited]` entity or role assignment. A service names the action and reason

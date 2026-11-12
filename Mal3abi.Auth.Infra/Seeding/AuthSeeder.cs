@@ -12,10 +12,6 @@ namespace Mal3abi.Auth.Infra.Seeding;
 
 public static class AuthSeeder
 {
-    /// <summary>
-    /// Applies migrations (Development only, or when Database:MigrateOnStartup is true), then
-    /// creates the roles, the first super admin, and the OIDC client for Mal3abi.BE.
-    /// </summary>
     public static async Task SeedAuthCenterAsync(this IServiceProvider services)
     {
         await using var scope = services.CreateAsyncScope();
@@ -63,7 +59,6 @@ public static class AuthSeeder
             EmailConfirmed = true,
         };
 
-        // A short development password is allowed only in Development, so local setups keep working.
         if (environment.IsDevelopment() && password.Length < 8)
         {
             admin.PasswordHash = provider.GetRequiredService<IPasswordHasher<AuthUser>>().HashPassword(admin, password);

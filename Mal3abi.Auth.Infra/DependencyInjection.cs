@@ -1,11 +1,12 @@
+using Mal3abi.Auth.Core;
 using Mal3abi.Auth.Core.Accounts;
-using Mal3abi.Auth.Core.Audit;
 using Mal3abi.Auth.Core.Codes;
 using Mal3abi.Auth.Core.Common;
+using Mal3abi.Auth.Core.Services;
 using Mal3abi.Auth.Infra.Data;
 using Mal3abi.Auth.Infra.Email;
+using Mal3abi.Auth.Infra.Identity;
 using Mal3abi.Auth.Infra.Jobs;
-using Mal3abi.Auth.Infra.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -15,15 +16,14 @@ namespace Mal3abi.Auth.Infra;
 
 public static class DependencyInjection
 {
-    /// <summary>Database, Identity stores, repositories, services and background jobs.</summary>
     public static IdentityBuilder AddAuthInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("AuthCenter");
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("ConnectionStrings:AuthCenter must point to the Auth Center database.");
 
-        services.AddSingleton(TimeProvider.System);
-        services.AddScoped<AuditLabel>();
+        services.AddAuthCore();
+
         services.AddScoped<AuditSaveChangesInterceptor>();
         services.AddDbContext<AuthDbContext>((provider, options) =>
         {
@@ -33,13 +33,9 @@ public static class DependencyInjection
         });
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+        services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<IVerificationCodeRepository, VerificationCodeRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-        services.AddScoped<IVerificationCodeService, VerificationCodeService>();
-        services.AddScoped<IAuditService, AuditService>();
-        services.AddScoped<IAccountService, AccountService>();
-        services.AddScoped<ITwoFactorService, TwoFactorService>();
-        services.AddScoped<IAccountAdminService, AccountAdminService>();
         services.AddTransient<IEmailSender, SmtpEmailSender>();
 
         services.AddSingleton<UnconfirmedAccountCleanup>();
@@ -51,7 +47,7 @@ public static class DependencyInjection
             {
                 options.User.RequireUniqueEmail = true;
                 options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-";
-                options.SignIn.RequireConfirmedEmail = false; // checked by the Auth Center itself, with codes
+                options.SignIn.RequireConfirmedEmail = false;
                 options.Password.RequiredLength = 8;
                 options.Password.RequireDigit = true;
                 options.Password.RequireLowercase = false;
@@ -64,6 +60,6 @@ public static class DependencyInjection
             })
             .AddEntityFrameworkStores<AuthDbContext>()
             .AddDefaultTokenProviders()
-            .AddTokenProvider<InvitationTokenProvider>(InvitationTokenProviderOptions.ProviderName);
+            .AddTokenProvider<InvitationTokenProvider>(InvitationTokens.ProviderName);
     }
 }

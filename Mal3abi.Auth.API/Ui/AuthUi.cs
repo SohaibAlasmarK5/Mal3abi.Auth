@@ -4,10 +4,6 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace Mal3abi.Auth.API.Ui;
 
-/// <summary>
-/// The language of the account pages and API messages, and all their text in Modern Standard
-/// Arabic and English. Every new text goes here in both languages.
-/// </summary>
 public sealed partial class AuthUi
 {
     public const string LangCookie = "mal3abi-lang";
@@ -20,19 +16,12 @@ public sealed partial class AuthUi
         Lang = lang;
     }
 
-    /// <summary>"ar" (default) or "en".</summary>
     public string Lang { get; }
 
     public string Dir => Lang == "ar" ? "rtl" : "ltr";
 
     public string OtherLang => Lang == "ar" ? "en" : "ar";
 
-    /// <summary>
-    /// Language order: ?lang=, the OIDC ui_locales hint (also inside the return URL, so the
-    /// website's choice carries over), the saved choice, then Arabic. API calls (/api) also look
-    /// at Accept-Language before falling back to Arabic. Pages ignore the browser language on
-    /// purpose, as the website does.
-    /// </summary>
     public static AuthUi For(HttpRequest request)
     {
         if (request.HttpContext.Items.TryGetValue(typeof(AuthUi), out var cached) && cached is AuthUi ui) return ui;
@@ -70,7 +59,6 @@ public sealed partial class AuthUi
     private static string? Pick(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        // ui_locales may hold several tags ("en-GB ar"); the first one we support wins.
         foreach (var tag in value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
             var code = tag.Split('-')[0].ToLowerInvariant();
@@ -79,7 +67,6 @@ public sealed partial class AuthUi
         return null;
     }
 
-    /// <summary>This page in the other language, keeping every other query value.</summary>
     public string SwitchLangUrl()
     {
         var query = QueryHelpers.ParseQuery(request.QueryString.Value)
@@ -94,7 +81,6 @@ public sealed partial class AuthUi
 
     public string T(string key, object arg) => string.Format(CultureInfo.InvariantCulture, T(key), arg);
 
-    /// <summary>The text for an error code, with its wait time or end date when it has one.</summary>
     public string Error(Error? error)
     {
         if (error is null) return string.Empty;
@@ -117,12 +103,6 @@ public sealed partial class AuthUi
             Lang == "ar" ? CultureInfo.GetCultureInfo("ar-JO") : CultureInfo.GetCultureInfo("en-GB"));
 }
 
-/// <summary>Settings for the shared six-digit code input (Pages/Shared/_CodeInput.cshtml).</summary>
-/// <param name="Name">Form field name the page model binds, for example "Code".</param>
-/// <param name="Label">Visible label.</param>
-/// <param name="ResendHandler">Page handler that sends a new code; null hides the resend button.</param>
-/// <param name="ResendSeconds">Wait before resending is allowed.</param>
-/// <param name="State">null, "wrong", "expired" or "attempts".</param>
 public sealed record CodeInput(
     string Name,
     string Label,
@@ -130,7 +110,6 @@ public sealed record CodeInput(
     int ResendSeconds = 60,
     string? State = null)
 {
-    /// <summary>The code input state for an error code, or null when the error is about something else.</summary>
     public static string? StateFor(Error? error) => error?.Code switch
     {
         ErrorCodes.CodeWrong => "wrong",

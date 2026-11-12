@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Mal3abi.Auth.API.Pages.Account;
 
-/// <summary>Player sign-up, and court owner self sign-up with ?as=owner (reference section 5).</summary>
 public sealed class RegisterModel(IAccountService accounts, SignInFlow flow) : AuthPageModel
 {
     [BindProperty(SupportsGet = true)]
@@ -33,7 +32,6 @@ public sealed class RegisterModel(IAccountService accounts, SignInFlow flow) : A
             return Page();
         }
 
-        // The password was just set here, so after the email code the user is signed in directly.
         flow.SetPending(result.Value.Id, PendingSignIn.ConfirmEmail, rememberMe: false, ReturnUrl);
         return RedirectToPage("/Account/ConfirmEmail", new { returnUrl = ReturnUrl });
     }

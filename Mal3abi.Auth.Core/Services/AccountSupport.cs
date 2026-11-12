@@ -1,16 +1,9 @@
 using Mal3abi.Auth.Core.Accounts;
 using Mal3abi.Auth.Core.Common;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
-namespace Mal3abi.Auth.Infra.Services;
+namespace Mal3abi.Auth.Core.Services;
 
-/// <summary>
-/// Names the next save in the audit log: when set, the interceptor uses this action and note
-/// for account changes instead of the generic "account.updated". Scoped per request.
-/// </summary>
 public sealed class AuditLabel
 {
     public string? Action { get; private set; }
@@ -27,6 +20,12 @@ public sealed class AuditLabel
         Action = null;
         Note = null;
     }
+}
+
+public static class InvitationTokens
+{
+    public const string ProviderName = "Invitation";
+    public const string Purpose = "accept-invitation";
 }
 
 public static class AccountMapping
@@ -51,7 +50,6 @@ public static class AccountMapping
         user.CreatedAt,
         user.LastSignInAt);
 
-    /// <summary>Identity failures as a stable code plus the localized messages.</summary>
     public static Error ToError(this IdentityResult result)
     {
         var codes = result.Errors.Select(e => e.Code).ToList();
@@ -65,22 +63,3 @@ public static class AccountMapping
 
     public static string NormalizeLanguage(string? language) => language?.Trim().ToLowerInvariant() == "en" ? "en" : "ar";
 }
-
-/// <summary>Invitation links stay valid for three days; other tokens use the default lifetime.</summary>
-public sealed class InvitationTokenProviderOptions : DataProtectionTokenProviderOptions
-{
-    public const string ProviderName = "Invitation";
-    public const string Purpose = "accept-invitation";
-
-    public InvitationTokenProviderOptions()
-    {
-        Name = ProviderName;
-        TokenLifespan = TimeSpan.FromDays(3);
-    }
-}
-
-public sealed class InvitationTokenProvider(
-    IDataProtectionProvider dataProtectionProvider,
-    IOptions<InvitationTokenProviderOptions> options,
-    ILogger<DataProtectorTokenProvider<AuthUser>> logger)
-    : DataProtectorTokenProvider<AuthUser>(dataProtectionProvider, options, logger);

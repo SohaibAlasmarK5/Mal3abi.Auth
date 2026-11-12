@@ -9,14 +9,8 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Mal3abi.Auth.Infra.Data;
 
-/// <summary>
-/// One place for the rules every table follows:
-/// fills CreatedAt and UpdatedAt, turns deletes of soft-deletable rows into hiding, and writes
-/// an audit row (before and after) for every change to an [Audited] entity or a role assignment.
-/// </summary>
-public sealed class AuditSaveChangesInterceptor(ICurrentActor actor, TimeProvider time, Services.AuditLabel label) : SaveChangesInterceptor
+public sealed class AuditSaveChangesInterceptor(ICurrentActor actor, TimeProvider time, Core.Services.AuditLabel label) : SaveChangesInterceptor
 {
-    // Values that change on their own or must never be copied into the log.
     private static readonly HashSet<string> IgnoredProperties =
     [
         "ConcurrencyStamp", "SecurityStamp", "AccessFailedCount", "UpdatedAt", "CreatedAt", "LastSignInAt",
@@ -69,7 +63,6 @@ public sealed class AuditSaveChangesInterceptor(ICurrentActor actor, TimeProvide
             if (row is not null) audit.Add(row);
         }
 
-        // A service may have named this save (for example "account.suspended" with the reason).
         if (label.Action is not null)
         {
             var account = audit.FirstOrDefault(a => a.EntityType == "AuthUser" && a.Action != "account.added");

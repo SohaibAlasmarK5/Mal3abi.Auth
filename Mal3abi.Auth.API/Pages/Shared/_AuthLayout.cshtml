@@ -1,7 +1,6 @@
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
 @{
     var ui = AuthUi.For(Context.Request);
-    // Where the logo and "back to the website" lead. Set Website:Url per environment.
     var siteUrl = (Config["Website:Url"] ?? "http://localhost:3000").TrimEnd('/') + "/" + ui.Lang;
 }
 <!doctype html>
@@ -11,7 +10,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] | @ui.T("titleSuffix")</title>
     <script>
-        // Before paint, so the wrong theme never flashes: saved choice, otherwise the system setting.
         (function () {
             var saved = null;
             try { saved = localStorage.getItem("mal3abi-theme"); } catch (e) { }

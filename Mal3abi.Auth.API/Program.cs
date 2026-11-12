@@ -23,7 +23,6 @@ builder.Services.AddScoped<SignInFlow>();
 builder.Services.AddAuthInfrastructure(configuration)
     .AddErrorDescriber<LocalizedIdentityErrorDescriber>();
 
-// Bans and suspensions change the security stamp; cookie sessions notice within five minutes.
 builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(5));
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -37,7 +36,6 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.ExpireTimeSpan = TimeSpan.FromHours(12);
     options.SlidingExpiration = true;
-    // APIs answer 401/403 instead of redirecting to the sign-in page.
     options.Events.OnRedirectToLogin = context => ApiOrRedirect(context.HttpContext, context.RedirectUri, ErrorCodes.Unauthorized);
     options.Events.OnRedirectToAccessDenied = context => ApiOrRedirect(context.HttpContext, context.RedirectUri, ErrorCodes.Forbidden);
 });
@@ -74,14 +72,12 @@ builder.Services.AddOpenIddict()
             .EnableTokenEndpointPassthrough()
             .EnableEndSessionEndpointPassthrough();
     })
-    // Access tokens from this server also work on /api/accounts/me (mobile app later).
     .AddValidation(options =>
     {
         options.UseLocalServer();
         options.UseAspNetCore();
     });
 
-// One scheme for APIs: a bearer token when the request has one, otherwise the Auth Center cookie.
 builder.Services.AddAuthentication().AddPolicyScheme(Policies.ApiScheme, "Cookie or bearer token", options =>
     options.ForwardDefaultSelector = context =>
         context.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
@@ -109,7 +105,6 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
-    // Problems that did not come from a service result still get a code.
     if (context.ProblemDetails.Extensions.ContainsKey("code")) return;
     var code = context.ProblemDetails.Status switch
     {
@@ -126,7 +121,6 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
 
 builder.Services.AddRazorPages(options =>
 {
-    // Pages use the Auth Center cookie only; every other account page is open.
     options.Conventions.AuthorizePage("/Account/Security");
 });
 builder.Services.AddOpenApi();

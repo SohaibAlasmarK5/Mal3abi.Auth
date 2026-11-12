@@ -32,11 +32,9 @@ public sealed class LoginModel(IAccountService accounts, ITwoFactorService twoFa
         }
 
         var (user, needsConfirmation, method) = check.Value;
-        // Codes sent below follow the language of this page.
         await accounts.SetLanguageAsync(user.Id, Ui.Lang, cancellationToken);
         if (needsConfirmation)
         {
-            // An earlier code may still be valid, so a "too soon" answer is fine here.
             await accounts.SendConfirmationCodeAsync(user, cancellationToken);
             flow.SetPending(user.Id, PendingSignIn.ConfirmEmail, Input.RememberMe, ReturnUrl);
             return RedirectToPage("/Account/ConfirmEmail", new { returnUrl = ReturnUrl });

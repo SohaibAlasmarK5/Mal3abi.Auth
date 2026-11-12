@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Mal3abi.Auth.API.Pages.Account;
 
-/// <summary>An invited owner or admin sets a password, then confirms the email with a code.</summary>
 public sealed class AcceptInvitationModel(IAccountService accounts, SignInFlow flow) : AuthPageModel
 {
     [BindProperty(SupportsGet = true)]

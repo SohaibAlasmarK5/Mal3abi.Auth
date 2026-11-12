@@ -12,7 +12,6 @@ public sealed class RegisterRequest : IValidatedRequest
     public string? PhotoUrl { get; init; }
     public string Password { get; init; } = "";
 
-    /// <summary>"player" (default) or "owner".</summary>
     public string? Role { get; init; }
 
     public void Validate(FieldErrors errors) => errors
@@ -123,7 +122,6 @@ public sealed class StatusRequest : IValidatedRequest
 {
     public string Reason { get; init; } = "";
 
-    /// <summary>End of a suspension (required for suspend).</summary>
     public DateTimeOffset? Until { get; init; }
 
     public void Validate(FieldErrors errors) => errors.Required(nameof(Reason), Reason, "admin.reason", 500);

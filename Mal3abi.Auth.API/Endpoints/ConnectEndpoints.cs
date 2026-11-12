@@ -10,11 +10,6 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Mal3abi.Auth.API.Endpoints;
 
-/// <summary>
-/// OpenID Connect endpoints for Mal3abi.BE (client "mal3abi-api"): authorize, token and logout.
-/// Claims stay as BE reads them: sub, name, preferred_username, email, email_verified,
-/// role (player, owner or superadmin) and auth_center.
-/// </summary>
 public static class ConnectEndpoints
 {
     public static void MapConnectEndpoints(this IEndpointRouteBuilder app)
@@ -36,7 +31,6 @@ public static class ConnectEndpoints
         if (!cookie.Succeeded || cookie.Principal?.GetUserId() is not { } userId)
             return Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl }, [IdentityConstants.ApplicationScheme]);
 
-        // Suspended, banned, hidden or unconfirmed accounts sign in again, and the sign-in page explains why.
         var check = await accounts.EnsureCanSignInAsync(userId);
         if (!check.Succeeded)
         {
@@ -70,7 +64,6 @@ public static class ConnectEndpoints
         if (stored.Principal?.GetClaim(Claims.Subject) is not { } subject || !Guid.TryParse(subject, out var userId))
             return Forbid(Errors.InvalidGrant, "The token is no longer valid.");
 
-        // Checked on every refresh, so a suspension or ban ends access within one access-token lifetime.
         var check = await accounts.EnsureCanSignInAsync(userId);
         if (!check.Succeeded)
             return Forbid(Errors.InvalidGrant, "The account can no longer sign in.");
@@ -83,7 +76,6 @@ public static class ConnectEndpoints
     private static async Task<IResult> LogoutAsync(HttpContext context)
     {
         await context.SignOutAsync(IdentityConstants.ApplicationScheme);
-        // OpenIddict checks post_logout_redirect_uri against the client's registered addresses.
         return Results.SignOut(new AuthenticationProperties { RedirectUri = "/account/login?signedOut=true" },
             [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
     }
@@ -101,7 +93,6 @@ public static class ConnectEndpoints
             .SetClaim(Claims.Role, AuthRoles.ToPublic(roles))
             .SetClaim(Claims.Locale, user.PreferredLanguage)
             .SetClaim(AuthClaims.Amr, withTwoFactor ? AuthClaims.Mfa : AuthClaims.Pwd);
-        // Scopes first: the destinations below depend on them.
         identity.SetScopes(scopes);
         identity.SetResources(resources);
 

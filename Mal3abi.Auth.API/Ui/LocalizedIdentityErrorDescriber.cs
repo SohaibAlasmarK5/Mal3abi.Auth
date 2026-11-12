@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Mal3abi.Auth.API.Ui;
 
-/// <summary>Identity validation messages (password rules, duplicates) in the request's language.</summary>
 public sealed class LocalizedIdentityErrorDescriber(IHttpContextAccessor http) : IdentityErrorDescriber
 {
     private string Text(string code) => Ui()?.T("identity." + code) ?? code;

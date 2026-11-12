@@ -5,10 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Mal3abi.Auth.API.Pages.Account;
 
-/// <summary>
-/// Email confirmation by six-digit code (reference section 16). After sign-up or a sign-in with
-/// the right password, the pending cookie knows the account; otherwise the user types the email.
-/// </summary>
 public sealed class ConfirmEmailModel(IAccountService accounts, ITwoFactorService twoFactor, IVerificationCodeService codes, SignInFlow flow) : AuthPageModel
 {
     [BindProperty]
@@ -44,7 +40,6 @@ public sealed class ConfirmEmailModel(IAccountService accounts, ITwoFactorServic
                 ShowError(byEmail.Error);
                 return Page();
             }
-            // No password was entered in this browser, so the user signs in normally.
             Done = true;
             return Page();
         }
@@ -57,7 +52,6 @@ public sealed class ConfirmEmailModel(IAccountService accounts, ITwoFactorServic
             return Page();
         }
 
-        // The email code proves the mailbox, which is the owners' second step too. Admins still use their app.
         var method = await twoFactor.RequiredMethodAsync(user);
         if (method == TwoFactorMethod.Authenticator && user.TwoFactorMethod == TwoFactorMethod.Authenticator)
         {

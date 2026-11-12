@@ -1,9 +1,5 @@
 namespace Mal3abi.Auth.Core.Common;
 
-/// <summary>
-/// A failure with a stable code. The API turns it into problem+json; the pages turn the code
-/// into Arabic or English text. Details hold messages that are already localized (Identity rules).
-/// </summary>
 public sealed record Error(
     string Code,
     IReadOnlyList<string>? Details = null,
@@ -40,7 +36,6 @@ public sealed class Result<T> : Result
     public static implicit operator Result<T>(Error error) => Failure(error);
 }
 
-/// <summary>Error codes shared with the website and Mal3abi.BE. Do not rename.</summary>
 public static class ErrorCodes
 {
     public const string ValidationFailed = "validation_failed";

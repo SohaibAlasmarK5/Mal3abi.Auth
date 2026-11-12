@@ -70,7 +70,6 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             ban.HasIndex(b => new { b.Kind, b.Value });
         });
 
-        // Soft delete: hide deleted rows everywhere unless a query asks for them.
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (!typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType)) continue;

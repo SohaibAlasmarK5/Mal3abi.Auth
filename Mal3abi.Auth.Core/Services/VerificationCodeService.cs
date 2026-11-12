@@ -3,18 +3,12 @@ using System.Text;
 using Mal3abi.Auth.Core.Accounts;
 using Mal3abi.Auth.Core.Codes;
 using Mal3abi.Auth.Core.Common;
-using Mal3abi.Auth.Infra.Email;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
-namespace Mal3abi.Auth.Infra.Services;
+namespace Mal3abi.Auth.Core.Services;
 
-/// <summary>
-/// Six-digit email codes: 10 minutes, 5 wrong attempts, resend after 1 minute, 5 per hour
-/// (reference section 16). Codes are stored as an HMAC, never in clear.
-/// </summary>
 public sealed class VerificationCodeService(
-    IRepository<VerificationCode> codes,
+    IVerificationCodeRepository codes,
     IUnitOfWork unitOfWork,
     IEmailSender email,
     IConfiguration configuration,
@@ -23,10 +17,7 @@ public sealed class VerificationCodeService(
     public async Task<Result<IssuedCode>> IssueAsync(AuthUser user, CodePurpose purpose, string sendTo, CancellationToken cancellationToken = default)
     {
         var now = time.GetUtcNow();
-        var recent = await codes.Query()
-            .Where(c => c.UserId == user.Id && c.Purpose == purpose && c.CreatedAt > now.AddHours(-1))
-            .OrderByDescending(c => c.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var recent = await codes.GetSentSinceAsync(user.Id, purpose, now.AddHours(-1), cancellationToken);
 
         var last = recent.FirstOrDefault();
         if (last is not null && now - last.CreatedAt < CodeRules.ResendAfter)
@@ -36,8 +27,7 @@ public sealed class VerificationCodeService(
         }
         if (recent.Count >= CodeRules.MaxPerHour)
         {
-            var oldest = recent[^1].CreatedAt;
-            var wait = (int)Math.Ceiling((oldest.AddHours(1) - now).TotalSeconds);
+            var wait = (int)Math.Ceiling((recent[^1].CreatedAt.AddHours(1) - now).TotalSeconds);
             return new Error(ErrorCodes.CodeHourlyLimit, RetryAfterSeconds: Math.Max(1, wait));
         }
 
@@ -63,10 +53,7 @@ public sealed class VerificationCodeService(
     public async Task<Result<string>> VerifyAsync(Guid userId, CodePurpose purpose, string code, CancellationToken cancellationToken = default)
     {
         var now = time.GetUtcNow();
-        var current = await codes.Query()
-            .Where(c => c.UserId == userId && c.Purpose == purpose && !c.Superseded)
-            .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+        var current = await codes.GetCurrentAsync(userId, purpose, cancellationToken);
 
         if (current is null || current.UsedAt is not null || current.ExpiresAt <= now)
             return new Error(ErrorCodes.CodeExpired);
@@ -90,18 +77,12 @@ public sealed class VerificationCodeService(
 
     public async Task<int> SecondsUntilResendAsync(Guid userId, CodePurpose purpose, CancellationToken cancellationToken = default)
     {
-        var now = time.GetUtcNow();
-        var last = await codes.QueryNoTracking()
-            .Where(c => c.UserId == userId && c.Purpose == purpose)
-            .OrderByDescending(c => c.CreatedAt)
-            .Select(c => (DateTimeOffset?)c.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+        var last = await codes.GetLastSentAtAsync(userId, purpose, cancellationToken);
         if (last is null) return 0;
-        var wait = CodeRules.ResendAfter - (now - last.Value);
+        var wait = CodeRules.ResendAfter - (time.GetUtcNow() - last.Value);
         return wait > TimeSpan.Zero ? (int)Math.Ceiling(wait.TotalSeconds) : 0;
     }
 
-    /// <summary>Accepts Arabic-Indic digits too, and ignores spaces.</summary>
     public static string NormalizeDigits(string? value)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;

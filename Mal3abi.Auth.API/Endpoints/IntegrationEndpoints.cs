@@ -4,11 +4,6 @@ using Mal3abi.Auth.Core.Common;
 
 namespace Mal3abi.Auth.API.Endpoints;
 
-/// <summary>
-/// Server-to-server API for Mal3abi.BE, protected by X-Mal3abi-Integration-Key. The routes and
-/// JSON shapes of the first six endpoints are the ones BE's AuthCenterClient already calls.
-/// BE may name the admin acting with X-Mal3abi-Actor-Id, for the audit log.
-/// </summary>
 public static class IntegrationEndpoints
 {
     public static void MapIntegrationEndpoints(this IEndpointRouteBuilder app)
@@ -36,7 +31,6 @@ public static class IntegrationEndpoints
         integration.MapPost("/accounts/superadmins", (InviteRequest request, HttpContext context, IAccountService accounts, IConfiguration configuration, CancellationToken ct) =>
             AdminEndpoints.InviteAsync(request, AuthRoles.SuperAdmin, context, accounts, configuration, ct)).Validate<InviteRequest>();
 
-        // New: BE applies no-show penalties (reference section 9) through these.
         AdminEndpoints.MapStatusActions(integration);
     }
 }
