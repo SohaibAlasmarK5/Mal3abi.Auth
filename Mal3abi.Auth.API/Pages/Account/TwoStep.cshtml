@@ -1,0 +1,18 @@
+@page "/account/two-step"
+@model Mal3abi.Auth.API.Pages.Account.TwoStepModel
+@{
+    var ui = Model.Ui;
+    ViewData["Title"] = ui.T("twostep.title");
+}
+<h1>@ui.T("twostep.title")</h1>
+<p class="intro">@(Model.UsesEmail ? ui.T("twostep.introEmail", Model.MaskedEmail) : ui.T("twostep.introApp"))</p>
+<partial name="_Message" model="@(("success", Model.SuccessMessage ?? ""))" />
+<partial name="_Message" model="@(("danger", Model.ErrorMessage ?? ""))" />
+<form method="post">
+    <input type="hidden" asp-for="ReturnUrl" />
+    <partial name="_CodeInput" model="@(new CodeInput(Name: "Code", Label: ui.T("twostep.label"), ResendHandler: Model.UsesEmail ? "Resend" : null, ResendSeconds: Model.ResendSeconds, State: Model.CodeState))" />
+    <button type="submit" class="btn">@ui.T("twostep.submit")</button>
+</form>
+<div class="links">
+    <a href="@Url.Page("/Account/Login", new { returnUrl = Model.ReturnUrl })">@ui.T("twostep.other")</a>
+</div>

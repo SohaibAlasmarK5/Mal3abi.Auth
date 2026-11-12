@@ -1,4 +1,51 @@
 @page "/account/security"
 @model Mal3abi.Auth.API.Pages.Account.SecurityModel
-@{ Layout = null; ViewData["Title"] = "حماية الحساب | ملعبي"; }
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>@ViewData["Title"]</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;background:#0b1220;color:#eef2f8;font:1rem "Segoe UI",Tahoma,Arial}main{width:min(100%,520px);padding:clamp(20px,5vw,34px);border:1px solid #2b3b55;border-radius:16px;background:#172338}p{color:#aebbd0;line-height:1.7}.notice{padding:12px;border-radius:8px;background:#26364a;color:#cfe2ff}.error{color:#ff9999}code{display:block;overflow-wrap:anywhere;padding:14px;border-radius:8px;background:#111b2c;color:#00d084;direction:ltr;text-align:left;font-size:1.05rem}label{display:block;margin:18px 0 6px}input,button{width:100%;min-height:46px;padding:10px;border-radius:8px;font:inherit}input{border:1px solid #33445e;background:#111b2c;color:white}button{margin-top:18px;border:0;background:#00c875;font-weight:700}</style></head><body><main><h1>تأكيد الحماية الإضافية</h1><p>يجب على مسؤولي المنصة تفعيل المصادقة الثنائية قبل الدخول إلى لوحة الإدارة.</p>@if(Model.IsEnabled){<p class="notice">المصادقة الثنائية مفعلة على هذا الحساب.</p>}else{<p>أضف هذا المفتاح في تطبيق مصادقة مثل Microsoft Authenticator أو Google Authenticator:</p><code>@Model.SharedKey</code><form method="post"><input type="hidden" asp-for="ReturnUrl"><label asp-for="Code">أدخل الرمز المكوّن من 6 أرقام</label><input asp-for="Code" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="10" required><button type="submit">تفعيل المصادقة الثنائية</button></form>}@if(!string.IsNullOrWhiteSpace(Model.Message)){<p class="@(Model.Success ? "notice" : "error")" role="status">@Model.Message</p>}</main></body></html>
+@{
+    var ui = Model.Ui;
+    ViewData["Title"] = ui.T("security.title");
+}
+<h1>@ui.T("security.title")</h1>
+<partial name="_Message" model="@(("success", Model.SuccessMessage ?? ""))" />
+<partial name="_Message" model="@(("danger", Model.ErrorMessage ?? ""))" />
+@switch (Model.Kind)
+{
+    case "admin" when Model.AuthenticatorOn:
+        <partial name="_Message" model="@(("success", ui.T("security.adminOn")))" />
+        break;
+    case "admin":
+        <p class="intro">@ui.T("security.adminIntro")</p>
+        <p>@ui.T("security.addKey")</p>
+        <div class="field">
+            <span class="hint">@ui.T("security.keyLabel")</span>
+            <code class="key">@Model.Setup?.SharedKey</code>
+        </div>
+        <div class="field">
+            <span class="hint">@ui.T("security.uriLabel")</span>
+            <code class="key">@Model.Setup?.AuthenticatorUri</code>
+        </div>
+        <form method="post" asp-page-handler="Authenticator">
+            <input type="hidden" asp-for="ReturnUrl" />
+            <partial name="_CodeInput" model="@(new CodeInput(Name: "Code", Label: ui.T("security.codeLabel"), State: Model.CodeState))" />
+            <button type="submit" class="btn">@ui.T("security.submit")</button>
+        </form>
+        break;
+    case "owner":
+        <partial name="_Message" model="@(("success", ui.T("security.ownerOn")))" />
+        break;
+    default:
+        <p class="intro">@ui.T(Model.EmailOn ? "security.playerOn" : "security.playerOff")</p>
+        <form method="post" asp-page-handler="Email">
+            <input type="hidden" asp-for="ReturnUrl" />
+            <input type="hidden" name="enabled" value="@(Model.EmailOn ? "false" : "true")" />
+            <button type="submit" class="btn @(Model.EmailOn ? "btn-secondary" : "")">@ui.T(Model.EmailOn ? "security.turnOff" : "security.turnOn")</button>
+        </form>
+        break;
+}
+@if (!string.IsNullOrEmpty(Model.ContinueUrl))
+{
+    <a class="btn" href="@Model.ContinueUrl">@ui.T("security.continue")</a>
+}
+<div class="divider"></div>
+<div class="links">
+    <a href="@Url.Page("/Account/Logout")">@ui.T("security.signOut")</a>
+</div>

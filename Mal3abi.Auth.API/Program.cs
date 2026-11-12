@@ -1,153 +1,195 @@
-using Mal3abi.Auth.Core.Accounts;
-using Mal3abi.Auth.Infra.Accounts;
-using Mal3abi.Auth.Infra.Email;
-using Mal3abi.Auth.Infra.Extensions;
-using Mal3abi.Auth.Infra.Data;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using OpenIddict.Abstractions;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.RateLimiting;
+using Mal3abi.Auth.API.Endpoints;
+using Mal3abi.Auth.API.Http;
+using Mal3abi.Auth.API.Ui;
+using Mal3abi.Auth.Core.Common;
+using Mal3abi.Auth.Infra;
+using Mal3abi.Auth.Infra.Data;
+using Mal3abi.Auth.Infra.Seeding;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Identity;
+using OpenIddict.Validation.AspNetCore;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 var builder = WebApplication.CreateBuilder(args);
-var issuer = builder.Configuration["Authentication:Issuer"] ?? "https://localhost:44493/";
-var connectionString = builder.Configuration.GetConnectionString("AuthCenter");
-if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings:AuthCenter must point to the Authentication Center database.");
+var configuration = builder.Configuration;
+var issuer = configuration["Authentication:Issuer"] ?? "https://localhost:44493/";
 
-builder.Services.AddDbContext<AuthDbContext>(options =>
-{
-    options.UseSqlServer(connectionString);
-    options.UseOpenIddict<Guid>();
-});
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentActor, HttpCurrentActor>();
+builder.Services.AddScoped<SignInFlow>();
 
-builder.Services.AddIdentity<AuthUser, IdentityRole<Guid>>(options =>
-    {
-        options.User.RequireUniqueEmail = true;
-        options.SignIn.RequireConfirmedEmail = false;
-        options.Lockout.MaxFailedAccessAttempts = 5;
-        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-        options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultEmailProvider;
-    })
-    .AddEntityFrameworkStores<AuthDbContext>()
-    .AddDefaultTokenProviders();
+builder.Services.AddAuthInfrastructure(configuration)
+    .AddErrorDescriber<LocalizedIdentityErrorDescriber>();
 
-builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromMinutes(5));
-builder.Services.AddScoped<IAuthAccountService, AuthAccountService>();
-builder.Services.AddTransient<IAuthEmailSender, ConfiguredAuthEmailSender>();
-builder.Services.AddControllersWithViews();
-builder.Services.AddRazorPages();
+// Bans and suspensions change the security stamp; cookie sessions notice within five minutes.
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(5));
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/account/login";
     options.LogoutPath = "/account/logout";
+    options.AccessDeniedPath = "/account/login";
     options.Cookie.Name = "Mal3abi.Auth.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.ExpireTimeSpan = TimeSpan.FromHours(12);
     options.SlidingExpiration = true;
+    // APIs answer 401/403 instead of redirecting to the sign-in page.
+    options.Events.OnRedirectToLogin = context => ApiOrRedirect(context.HttpContext, context.RedirectUri, ErrorCodes.Unauthorized);
+    options.Events.OnRedirectToAccessDenied = context => ApiOrRedirect(context.HttpContext, context.RedirectUri, ErrorCodes.Forbidden);
 });
 
-builder.Services.AddAuthorization();
-
-var clientSecret = builder.Configuration["Authentication:ClientSecret"];
-if (string.IsNullOrWhiteSpace(clientSecret))
-    throw new InvalidOperationException("Authentication:ClientSecret must be set in User Secrets or the production secret store.");
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
 builder.Services.AddOpenIddict()
-    .AddCore(options => options
-        .UseEntityFrameworkCore()
-        .UseDbContext<AuthDbContext>()
-        .ReplaceDefaultEntities<Guid>())
+    .AddCore(options => options.UseEntityFrameworkCore().UseDbContext<AuthDbContext>().ReplaceDefaultEntities<Guid>())
     .AddServer(options =>
     {
         options.SetIssuer(new Uri(issuer));
-        options.SetAuthorizationEndpointUris("connect/authorize");
-        options.SetTokenEndpointUris("connect/token");
-        options.SetEndSessionEndpointUris("connect/logout");
-        options.SetRevocationEndpointUris("connect/revoke");
-        options.AllowAuthorizationCodeFlow()
-            .AllowRefreshTokenFlow()
-            .RequireProofKeyForCodeExchange()
-            .SetAccessTokenLifetime(TimeSpan.FromMinutes(15))
+        options.SetAuthorizationEndpointUris("connect/authorize")
+            .SetTokenEndpointUris("connect/token")
+            .SetEndSessionEndpointUris("connect/logout")
+            .SetRevocationEndpointUris("connect/revoke");
+        options.AllowAuthorizationCodeFlow().AllowRefreshTokenFlow().RequireProofKeyForCodeExchange();
+        options.SetAccessTokenLifetime(TimeSpan.FromMinutes(15))
             .SetRefreshTokenLifetime(TimeSpan.FromDays(30))
             .DisableSlidingRefreshTokenExpiration();
         options.RegisterScopes(Scopes.Email, Scopes.Profile, Scopes.Roles, Scopes.OfflineAccess);
 
         if (builder.Environment.IsDevelopment())
         {
-            options.AddDevelopmentSigningCertificate();
-            options.AddDevelopmentEncryptionCertificate();
+            options.AddDevelopmentSigningCertificate().AddDevelopmentEncryptionCertificate();
         }
         else
         {
-            var signingPath = builder.Configuration["Authentication:SigningCertificatePath"];
-            var signingPassword = builder.Configuration["Authentication:SigningCertificatePassword"];
-            var encryptionPath = builder.Configuration["Authentication:EncryptionCertificatePath"];
-            var encryptionPassword = builder.Configuration["Authentication:EncryptionCertificatePassword"];
-            if (string.IsNullOrWhiteSpace(signingPath) || string.IsNullOrWhiteSpace(signingPassword) ||
-                string.IsNullOrWhiteSpace(encryptionPath) || string.IsNullOrWhiteSpace(encryptionPassword))
-                throw new InvalidOperationException("Production requires separate signing and encryption certificates configured through Authentication settings.");
-            options.AddSigningCertificate(X509CertificateLoader.LoadPkcs12FromFile(signingPath, signingPassword, X509KeyStorageFlags.MachineKeySet));
-            options.AddEncryptionCertificate(X509CertificateLoader.LoadPkcs12FromFile(encryptionPath, encryptionPassword, X509KeyStorageFlags.MachineKeySet));
+            options.AddSigningCertificate(LoadCertificate(configuration, "Signing"));
+            options.AddEncryptionCertificate(LoadCertificate(configuration, "Encryption"));
         }
 
         options.UseAspNetCore()
             .EnableAuthorizationEndpointPassthrough()
+            .EnableTokenEndpointPassthrough()
             .EnableEndSessionEndpointPassthrough();
+    })
+    // Access tokens from this server also work on /api/accounts/me (mobile app later).
+    .AddValidation(options =>
+    {
+        options.UseLocalServer();
+        options.UseAspNetCore();
     });
+
+// One scheme for APIs: a bearer token when the request has one, otherwise the Auth Center cookie.
+builder.Services.AddAuthentication().AddPolicyScheme(Policies.ApiScheme, "Cookie or bearer token", options =>
+    options.ForwardDefaultSelector = context =>
+        context.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme
+            : IdentityConstants.ApplicationScheme);
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Policies.Account, policy => policy
+        .AddAuthenticationSchemes(Policies.ApiScheme)
+        .RequireAuthenticatedUser())
+    .AddPolicy(Policies.SuperAdmin, policy => policy
+        .AddAuthenticationSchemes(Policies.ApiScheme)
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context => context.User.IsSuperAdmin() && context.User.HasMfa()));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(RateLimits.Accounts, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) }));
+    options.OnRejected = async (context, token) =>
+        await context.HttpContext.Problem(ErrorCodes.RateLimited).ExecuteAsync(context.HttpContext);
+});
+
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+{
+    // Problems that did not come from a service result still get a code.
+    if (context.ProblemDetails.Extensions.ContainsKey("code")) return;
+    var code = context.ProblemDetails.Status switch
+    {
+        401 => ErrorCodes.Unauthorized,
+        403 => ErrorCodes.Forbidden,
+        404 => ErrorCodes.NotFound,
+        429 => ErrorCodes.RateLimited,
+        >= 500 => ErrorCodes.ServerError,
+        _ => ErrorCodes.ValidationFailed,
+    };
+    context.ProblemDetails.Extensions["code"] = code;
+    context.ProblemDetails.Extensions["message"] = AuthUi.For(context.HttpContext.Request).Error(new Error(code));
+});
+
+builder.Services.AddRazorPages(options =>
+{
+    // Pages use the Auth Center cookie only; every other account page is open.
+    options.Conventions.AuthorizePage("/Account/Security");
+});
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var feature = context.Features.Get<IExceptionHandlerFeature>();
+    app.Logger.LogError(feature?.Error, "Unhandled error on {Path}", context.Request.Path);
+    if (context.Request.Path.StartsWithSegments("/api"))
+        await context.Problem(ErrorCodes.ServerError).ExecuteAsync(context);
+    else
+        context.Response.Redirect("/account/login?error=server_error");
+}));
 if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.UseHttpsRedirection();
+app.UseStatusCodePages();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
+
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.MapGet("/", () => Results.Redirect("/account/login")).ExcludeFromDescription();
+app.MapGet("/health", () => Results.Ok(new { status = "ok", issuer })).ExcludeFromDescription();
+app.MapConnectEndpoints();
+app.MapAccountEndpoints();
+app.MapAdminEndpoints();
+app.MapIntegrationEndpoints();
 app.MapRazorPages();
-app.MapGet("/health", () => Results.Ok(new { status = "ok", issuer }));
 
-await app.Services.SeedRolesAndSuperAdminAsync();
-await EnsureMal3abiApiClientAsync(app.Services, clientSecret, builder.Configuration);
-
+await app.Services.SeedAuthCenterAsync();
 app.Run();
 
-static async Task EnsureMal3abiApiClientAsync(IServiceProvider services, string secret, IConfiguration configuration)
+static Task ApiOrRedirect(HttpContext context, string redirectUri, string code)
 {
-    await using var scope = services.CreateAsyncScope();
-    var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
-    var existingApplication = await manager.FindByClientIdAsync("mal3abi-api");
-
-    var descriptor = new OpenIddictApplicationDescriptor
-    {
-        ClientId = "mal3abi-api",
-        ClientSecret = secret,
-        DisplayName = "Mal3abi Web Application",
-        ClientType = ClientTypes.Confidential,
-        ConsentType = ConsentTypes.Implicit
-    };
-    var redirectUris = configuration.GetSection("Authentication:RedirectUris").Get<string[]>()
-        ?? ["https://localhost:44393/signin-oidc"];
-    var logoutUris = configuration.GetSection("Authentication:PostLogoutRedirectUris").Get<string[]>()
-        ?? ["https://localhost:44393/signout-callback-oidc"];
-    foreach (var uri in redirectUris) descriptor.RedirectUris.Add(new Uri(uri));
-    foreach (var uri in logoutUris) descriptor.PostLogoutRedirectUris.Add(new Uri(uri));
-    descriptor.Permissions.Add(Permissions.Endpoints.Authorization);
-    descriptor.Permissions.Add(Permissions.Endpoints.Token);
-    descriptor.Permissions.Add(Permissions.Endpoints.EndSession);
-    descriptor.Permissions.Add(Permissions.Endpoints.Revocation);
-    descriptor.Permissions.Add(Permissions.GrantTypes.AuthorizationCode);
-    descriptor.Permissions.Add(Permissions.GrantTypes.RefreshToken);
-    descriptor.Permissions.Add(Permissions.ResponseTypes.Code);
-    descriptor.Permissions.Add(Permissions.Scopes.Email);
-    descriptor.Permissions.Add(Permissions.Scopes.Profile);
-    descriptor.Permissions.Add(Permissions.Prefixes.Scope + Scopes.Roles);
-    if (existingApplication is null)
-        await manager.CreateAsync(descriptor);
-    else
-        await manager.UpdateAsync(existingApplication, descriptor);
+    if (context.Request.Path.StartsWithSegments("/api"))
+        return context.Problem(code).ExecuteAsync(context);
+    context.Response.Redirect(redirectUri);
+    return Task.CompletedTask;
 }
+
+static X509Certificate2 LoadCertificate(IConfiguration configuration, string kind)
+{
+    var path = configuration[$"Authentication:{kind}CertificatePath"];
+    var password = configuration[$"Authentication:{kind}CertificatePassword"];
+    if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(password))
+        throw new InvalidOperationException($"Production needs Authentication:{kind}CertificatePath and {kind}CertificatePassword.");
+    return X509CertificateLoader.LoadPkcs12FromFile(path, password, X509KeyStorageFlags.MachineKeySet);
+}
+
+public static class Policies
+{
+    public const string Account = "account";
+    public const string SuperAdmin = "superadmin";
+    public const string ApiScheme = "api";
+}
+
+public static class RateLimits
+{
+    public const string Accounts = "accounts";
+}
+
+public partial class Program;

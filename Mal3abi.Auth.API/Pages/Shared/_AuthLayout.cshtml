@@ -1,0 +1,54 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@{
+    var ui = AuthUi.For(Context.Request);
+    // Where the logo and "back to the website" lead. Set Website:Url per environment.
+    var siteUrl = (Config["Website:Url"] ?? "http://localhost:3000").TrimEnd('/') + "/" + ui.Lang;
+}
+<!doctype html>
+<html lang="@ui.Lang" dir="@ui.Dir">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] | @ui.T("titleSuffix")</title>
+    <script>
+        // Before paint, so the wrong theme never flashes: saved choice, otherwise the system setting.
+        (function () {
+            var saved = null;
+            try { saved = localStorage.getItem("mal3abi-theme"); } catch (e) { }
+            var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+            document.documentElement.dataset.theme = dark ? "dark" : "light";
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="auth-bar">
+        <div class="auth-bar-inner">
+            <a class="auth-brand" href="@siteUrl">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"></rect><line x1="12" y1="5" x2="12" y2="19"></line><circle cx="12" cy="12" r="2.6"></circle></svg>
+                @ui.T("brand")
+                <small>@ui.T("accountCenter")</small>
+            </a>
+            <div class="auth-tools">
+                <a class="tool" href="@ui.SwitchLangUrl()" lang="@ui.OtherLang" aria-label="@ui.T("switchLangAria")">@ui.T("switchLang")</a>
+                <button type="button" class="tool" data-theme-toggle aria-label="@ui.T("themeToggle")" title="@ui.T("themeToggle")">
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg>
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+    <main class="auth-main" id="content">
+        <section class="card">
+            @RenderBody()
+        </section>
+    </main>
+    <footer class="auth-foot">
+        <a href="@siteUrl">@ui.T("backToSite")</a>
+    </footer>
+    <script src="~/js/auth.js" asp-append-version="true"></script>
+</body>
+</html>

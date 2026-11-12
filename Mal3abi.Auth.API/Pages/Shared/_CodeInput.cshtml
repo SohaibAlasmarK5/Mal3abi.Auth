@@ -1,0 +1,45 @@
+@*
+    Six-digit code input: one real input (paste, autofill and screen readers work) drawn as six boxes.
+    Digits always read left to right. Use for authenticator codes and, once the auth center sends
+    them, email verification codes:
+        <partial name="_CodeInput" model="new CodeInput(Name: "Code", Label: ui.T("security.codeLabel"), ResendHandler: "Resend")" />
+*@
+@model CodeInput
+@{
+    var ui = AuthUi.For(Context.Request);
+    var id = Model.Name.Replace('.', '_');
+    var stateText = Model.State switch
+    {
+        "wrong" => ui.T("code.wrong"),
+        "expired" => ui.T("code.expired"),
+        "attempts" => ui.T("code.attempts"),
+        _ => null,
+    };
+}
+<div class="field">
+    <label for="@id">@Model.Label</label>
+    <div class="code" data-code data-state="@Model.State">
+        <input id="@id" name="@Model.Name" inputmode="numeric" autocomplete="one-time-code"
+               pattern="[0-9٠-٩]{6}" maxlength="6" required aria-describedby="@(id)_hint"
+               aria-invalid="@(stateText is null ? "false" : "true")" />
+        <div class="code-slots" aria-hidden="true">
+            @for (var i = 0; i < 6; i++)
+            {
+                <span class="code-slot"></span>
+            }
+        </div>
+    </div>
+    <p class="hint" id="@(id)_hint">@ui.T("code.hint")</p>
+</div>
+@if (stateText is not null)
+{
+    <partial name="_Message" model="@(("danger", stateText))" />
+}
+@if (Model.ResendHandler is not null)
+{
+    <button type="submit" class="btn btn-secondary resend" formnovalidate
+            asp-page-handler="@Model.ResendHandler"
+            data-resend data-seconds="@Model.ResendSeconds" data-wait-text="@ui.T("code.resendIn")">
+        @ui.T("code.resend")
+    </button>
+}

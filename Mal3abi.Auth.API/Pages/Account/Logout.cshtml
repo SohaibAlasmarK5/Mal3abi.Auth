@@ -1,0 +1,11 @@
+@page "/account/logout"
+@model Mal3abi.Auth.API.Pages.Account.LogoutModel
+@{
+    var ui = Model.Ui;
+    ViewData["Title"] = ui.T("logout.title");
+}
+<h1>@ui.T("logout.title")</h1>
+<p class="intro">@ui.T("logout.intro")</p>
+<form method="post">
+    <button type="submit" class="btn">@ui.T("logout.submit")</button>
+</form>

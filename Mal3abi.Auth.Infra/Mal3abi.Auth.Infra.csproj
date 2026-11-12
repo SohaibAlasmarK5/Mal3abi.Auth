@@ -1,23 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <!-- Pinned: the version OpenIddict pulls in has known vulnerabilities. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
-<FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.7.2" />
   </ItemGroup>
   <ItemGroup>
-<ProjectReference Include="$(MSBuildThisFileDirectory)..\Mal3abi.Auth.Core\Mal3abi.Auth.Core.csproj" />
+    <ProjectReference Include="..\Mal3abi.Auth.Core\Mal3abi.Auth.Core.csproj" />
   </ItemGroup>
 </Project>
-
-

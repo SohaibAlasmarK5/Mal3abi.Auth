@@ -1,64 +1,77 @@
-using System.ComponentModel.DataAnnotations;
+using Mal3abi.Auth.API.Http;
 using Mal3abi.Auth.Core.Accounts;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+using Mal3abi.Auth.Core.Common;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Mal3abi.Auth.API.Pages.Account;
 
-[Authorize(Roles = "SuperAdmin,superadmin")]
-public sealed class SecurityModel(UserManager<AuthUser> users) : PageModel
+/// <summary>
+/// Two-step settings by role: admins set up the authenticator app (required before the admin
+/// dashboard), owners see that the email code is always on, players turn it on or off.
+/// </summary>
+public sealed class SecurityModel(IAccountService accounts, ITwoFactorService twoFactor, SignInFlow flow, IConfiguration configuration) : AuthPageModel
 {
-    [BindProperty(SupportsGet = true)] public string? ReturnUrl { get; set; }
-    [BindProperty, Required, StringLength(10, MinimumLength = 6)] public string Code { get; set; } = string.Empty;
-    public string? SharedKey { get; private set; }
-    public bool IsEnabled { get; private set; }
-    public string? Message { get; private set; }
-    public bool Success { get; private set; }
+    [BindProperty]
+    public string Code { get; set; } = "";
 
-    public async Task OnGetAsync() => await LoadAsync();
+    public string Kind { get; private set; } = "player";
+    public bool AuthenticatorOn { get; private set; }
+    public bool EmailOn { get; private set; }
+    public AuthenticatorSetup? Setup { get; private set; }
+    public string? ContinueUrl { get; private set; }
 
-    public async Task<IActionResult> OnPostAsync()
+    public async Task<IActionResult> OnGetAsync() => await LoadAsync() is null ? SignInAgain() : Page();
+
+    public async Task<IActionResult> OnPostAuthenticatorAsync(CancellationToken cancellationToken)
     {
-        var user = await users.GetUserAsync(User);
-        if (user is null) return Challenge();
-        IsEnabled = user.TwoFactorEnabled;
-        if (!IsEnabled && ModelState.IsValid)
+        var user = await LoadAsync();
+        if (user is null) return SignInAgain();
+        if (Kind != "admin") return Page();
+
+        var enabled = await twoFactor.EnableAuthenticatorAsync(user, Code, cancellationToken);
+        if (!enabled.Succeeded)
         {
-            var valid = await users.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultAuthenticatorProvider, Code.Replace(" ", "").Replace("-", ""));
-            if (valid)
-            {
-                var result = await users.SetTwoFactorEnabledAsync(user, true);
-                Success = result.Succeeded;
-                IsEnabled = result.Succeeded;
-                Message = result.Succeeded ? "تم تفعيل المصادقة الثنائية." : string.Join(" ", result.Errors.Select(e => e.Description));
-                if (result.Succeeded && !string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl)) return LocalRedirect(ReturnUrl);
-                if (result.Succeeded) return Page();
-            }
-            else Message = "رمز المصادقة غير صحيح.";
+            ShowError(enabled.Error);
+            return Page();
         }
-        await LoadKeyAsync(user);
+
+        // The app code was just checked: renew the session as a two-step session, then continue.
+        await flow.CompleteAsync(user, rememberMe: false, withTwoFactor: true);
+        var returnUrl = SignInFlow.SafeReturnUrl(ReturnUrl);
+        if (returnUrl is not null) return Redirect(returnUrl);
+
+        await LoadAsync();
+        SuccessMessage = Ui.T("security.saved");
         return Page();
     }
 
-    private async Task LoadAsync()
+    public async Task<IActionResult> OnPostEmailAsync(bool enabled, CancellationToken cancellationToken)
     {
-        var user = await users.GetUserAsync(User);
-        if (user is null) return;
-        IsEnabled = user.TwoFactorEnabled;
-        if (!IsEnabled) await LoadKeyAsync(user);
+        var user = await LoadAsync();
+        if (user is null) return SignInAgain();
+        var result = await twoFactor.SetEmailTwoFactorAsync(user, enabled, cancellationToken);
+        if (result.Succeeded) SuccessMessage = Ui.T("security.saved");
+        else ShowError(result.Error);
+        await LoadAsync();
+        return Page();
     }
 
-    private async Task LoadKeyAsync(AuthUser user)
+    private async Task<AuthUser?> LoadAsync()
     {
-        SharedKey = await users.GetAuthenticatorKeyAsync(user);
-        if (string.IsNullOrWhiteSpace(SharedKey))
-        {
-            var reset = await users.ResetAuthenticatorKeyAsync(user);
-            if (reset.Succeeded) SharedKey = await users.GetAuthenticatorKeyAsync(user);
-        }
+        if (User.GetUserId() is not { } id) return null;
+        var user = await accounts.FindAsync(id);
+        if (user is null) return null;
+
+        var method = await twoFactor.RequiredMethodAsync(user);
+        var roles = await accounts.GetRolesAsync(user);
+        Kind = roles.Contains(AuthRoles.SuperAdmin) ? "admin" : roles.Contains(AuthRoles.Owner) ? "owner" : "player";
+        AuthenticatorOn = user.TwoFactorMethod == TwoFactorMethod.Authenticator;
+        EmailOn = method == TwoFactorMethod.Email;
+        if (Kind == "admin" && !AuthenticatorOn)
+            Setup = await twoFactor.GetAuthenticatorSetupAsync(user, configuration["Authentication:AuthenticatorIssuer"] ?? "Mal3abi");
+        if (Kind != "admin" || AuthenticatorOn) ContinueUrl = SignInFlow.SafeReturnUrl(ReturnUrl);
+        return user;
     }
+
+    private IActionResult SignInAgain() => RedirectToPage("/Account/Login", new { returnUrl = Request.Path + Request.QueryString, error = ErrorCodes.Unauthorized });
 }
-
-
